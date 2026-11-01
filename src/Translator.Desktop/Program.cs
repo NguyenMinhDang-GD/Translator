@@ -1,3 +1,4 @@
+using System.Runtime.InteropServices;
 using Avalonia;
 using Translator.Core.Exporting;
 using Translator.Core.Indexing;
@@ -8,11 +9,19 @@ namespace Translator.Desktop;
 
 internal static class Program
 {
+    [DllImport("kernel32.dll")]
+    private static extern bool AttachConsole(int dwProcessId);
+
     [STAThread]
     public static int Main(string[] args)
     {
         if (args.Length >= 2 && args[0].Equals("--cli-scan", StringComparison.OrdinalIgnoreCase))
         {
+            if (OperatingSystem.IsWindows())
+            {
+                AttachConsole(-1);
+            }
+
             return RunHeadlessCliAsync(args).GetAwaiter().GetResult();
         }
 
