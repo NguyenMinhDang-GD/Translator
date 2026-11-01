@@ -78,7 +78,9 @@ public sealed partial class MainWindowViewModel : ObservableObject, IDisposable
     private bool _includeCodeStrings = true;
 
     [ObservableProperty]
-    private bool _showSystemNoise = false;
+    private bool _useSmartFilter = true;
+
+    public bool ShowSystemNoise => !UseSmartFilter;
 
     [ObservableProperty]
     private bool _filterPreviewBySearch = true;
@@ -148,7 +150,7 @@ public sealed partial class MainWindowViewModel : ObservableObject, IDisposable
     partial void OnIncludeMonoBehavioursChanged(bool value) => ApplyFilters();
     partial void OnIncludeCodeStringsChanged(bool value) => ApplyFilters();
 
-    partial void OnShowSystemNoiseChanged(bool value)
+    partial void OnUseSmartFilterChanged(bool value)
     {
         ApplyFilters();
         RefreshActivePreviewEntries();

@@ -126,9 +126,9 @@
                     <CheckBox IsChecked="{Binding IncludeMonoBehaviours}" Content="MonoBehaviour (ScriptableObject / I2)" Margin="0,0,16,0" />
                     <CheckBox IsChecked="{Binding IncludeCodeStrings}" Content="Code &amp; Metadata (DLL / IL2CPP)" Margin="0,0,24,0" />
 
-                    <ToggleSwitch IsChecked="{Binding ShowSystemNoise}"
-                                  OffContent="Đang bật Lọc thông minh (Ẩn rác hệ thống)"
-                                  OnContent="Hiện tất cả (Bao gồm biến code &amp; chuỗi hệ thống)" />
+                    <ToggleSwitch IsChecked="{Binding UseSmartFilter}"
+                                  OnContent="Đang BẬT Lọc thông minh (Ẩn rác hệ thống)"
+                                  OffContent="Đã TẮT Lọc thông minh (Hiện tất cả chuỗi hệ thống)" />
                 </WrapPanel>
             </Grid>
         </Border>
