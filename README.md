@@ -122,7 +122,3 @@ Nhờ giao diện chuẩn `IGameEngineAdapter` trong `Translator.Core`, ứng d�
 - [ ] **Web / HTML5 & Custom VN Engines:** Hỗ trợ các game đóng gói bằng Electron / NW.js, TyranoBuilder và Kirikiri/KAG.
 
 ---
-
-## Tài Liệu Tham Khảo Trong Dự Án
-- [RESEARCH_AND_ROADMAP.md](RESEARCH_AND_ROADMAP.md) — Nghiên cứu nền tảng về cấu trúc lưu trữ ngôn ngữ trong Unity, so sánh thư viện và bài toán xử lý Font.
-- [ARCHITECTURE.md](ARCHITECTURE.md) — Đặc tả kỹ thuật chi tiết của từng module trong mã nguồn và hướng dẫn từng bước để code mở rộng các giai đoạn tiếp theo.
