@@ -1,0 +1,94 @@
+# =====================================================================
+# 1. .NET / C# Build, Publish & Test Outputs
+# =====================================================================
+[Bb]in/
+[Oo]bj/
+[Oo]ut/
+[Pp]ublish/
+[Aa]rtifacts/
+[Ll]og/
+[Ll]ogs/
+
+# Test & Code Coverage results
+tests/
+
+# NuGet packages & lock artifacts
+*.nupkg
+*.snupkg
+project.lock.json
+project.fragment.lock.json
+*.nuget.props
+*.nuget.targets
+
+# =====================================================================
+# 2. IDEs & Editors (Visual Studio, JetBrains Rider, VS Code)
+# =====================================================================
+.vs/
+.idea/
+.vscode/
+.history/
+*.rsuser
+*.suo
+*.user
+*.userosscache
+*.sln.docstates
+*.DotSettings.user
+
+# =====================================================================
+# 3. Translator Tool — Cache, Backup & Extracted Game Text
+# =====================================================================
+# Cache TypeTree (Cpp2IL / Mono) và kho Backup nguyên tử khi Replace
+.translator_cache/
+.translator_backup/
+
+# Thư mục chứa file text được Extract ra để test (tránh đẩy nhầm dữ liệu bản quyền game lên Git)
+Extracted_*/
+ExportOutput/
+[Ee]xtracted/
+[Dd]umps/
+
+# File tạm & bản sao lưu trong quá trình Patch/Replace
+*.bak
+*.tmp
+*.translator.tmp
+*.assets
+*.sharedAssets
+*.bundle
+*.unity3d
+*.assetbundle
+*.resS
+*.resource
+global-metadata.dat
+GameAssembly.dll
+UnityPlayer.dll
+*.pak
+*.utoc
+*.ucas
+*.rpa
+*.pck
+
+# =====================================================================
+# 4. Bảo mật & API Keys (Cho giai đoạn tích hợp AI Dịch thuật sau này)
+# =====================================================================
+.env
+.env.*
+!.env.example
+appsettings.Local.json
+appsettings.Development.json
+*secrets*.json
+
+# =====================================================================
+# 5. Hệ điều hành (Windows / macOS / Linux)
+# =====================================================================
+Thumbs.db
+Thumbs.db:encryptable
+ehthumbs.db
+Desktop.ini
+$RECYCLE.BIN/
+.DS_Store
+*~
+
+# =====================================================================
+# documents
+# =====================================================================
+docs/

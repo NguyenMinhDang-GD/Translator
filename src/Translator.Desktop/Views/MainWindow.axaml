@@ -1,0 +1,359 @@
+<Window xmlns="https://github.com/avaloniaui"
+        xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+        xmlns:vm="using:Translator.Desktop.ViewModels"
+        xmlns:models="using:Translator.Core.Models"
+        x:Class="Translator.Desktop.Views.MainWindow"
+        x:DataType="vm:MainWindowViewModel"
+        Title="Game Translator — Unity Text Scanner &amp; Extractor"
+        Width="1360"
+        Height="860"
+        MinWidth="1020"
+        MinHeight="640"
+        Background="#0F172A"
+        WindowStartupLocation="CenterScreen">
+
+    <Grid RowDefinitions="Auto,Auto,*,Auto" Margin="14">
+
+        <!-- 1. TOP BAR: Game Folder Selection & Detected Profile Banner -->
+        <Border Grid.Row="0"
+                Background="#1E293B"
+                BorderBrush="#334155"
+                BorderThickness="1"
+                CornerRadius="8"
+                Padding="14,10"
+                Margin="0,0,0,10">
+            <Grid RowDefinitions="Auto,Auto" RowSpacing="8">
+                <Grid Grid.Row="0" ColumnDefinitions="Auto,*,Auto,Auto,Auto" ColumnSpacing="10">
+                    <Border Background="#2563EB" CornerRadius="6" Padding="10,6" VerticalAlignment="Center">
+                        <TextBlock Text="UNITY EXTRACTOR" FontWeight="Bold" FontSize="12" Foreground="White" />
+                    </Border>
+
+                    <TextBox Grid.Column="1"
+                             Text="{Binding GameFolderPath}"
+                             PlaceholderText="Đường dẫn thư mục Game Unity (VD: D:\Games\Hollow Knight)..."
+                             VerticalContentAlignment="Center" />
+
+                    <Button Grid.Column="2"
+                            Click="OnPickGameFolderClick"
+                            Background="#3B82F6"
+                            Foreground="White"
+                            FontWeight="SemiBold"
+                            Padding="14,7"
+                            Content="Chọn thư mục Game..." />
+
+                    <Button Grid.Column="3"
+                            Command="{Binding RescanCommand}"
+                            Padding="12,7"
+                            Content="Quét lại" />
+
+                    <Button Grid.Column="4"
+                            Command="{Binding CancelActiveOperationCommand}"
+                            IsEnabled="{Binding IsBusy}"
+                            Padding="12,7"
+                            Content="Dừng" />
+                </Grid>
+
+                <Grid Grid.Row="1" ColumnDefinitions="*,Auto">
+                    <TextBlock Text="{Binding GameBannerText}"
+                               Foreground="#93C5FD"
+                               FontSize="13"
+                               FontWeight="Medium"
+                               VerticalAlignment="Center" />
+
+                    <Button Grid.Column="1"
+                            IsVisible="{Binding HasEncryptedWarnings}"
+                            Command="{Binding ShowEncryptedTabCommand}"
+                            Background="#7F1D1D"
+                            Foreground="#FECACA"
+                            Padding="10,4"
+                            FontSize="12"
+                            Content="{Binding EncryptedBadgeText}" />
+                </Grid>
+            </Grid>
+        </Border>
+
+        <!-- 2. FILTER & FULL-TEXT SEARCH BAR -->
+        <Border Grid.Row="1"
+                Background="#1E293B"
+                BorderBrush="#334155"
+                BorderThickness="1"
+                CornerRadius="8"
+                Padding="14,10"
+                Margin="0,0,0,10">
+            <Grid RowDefinitions="Auto,Auto" RowSpacing="8">
+                <Grid Grid.Row="0" ColumnDefinitions="*,Auto,Auto" ColumnSpacing="10">
+                    <TextBox Grid.Column="0"
+                             Text="{Binding SearchQuery}"
+                             PlaceholderText="Tìm tên file hoặc gõ trực tiếp câu thoại nhìn thấy trong game (VD: New Game, Press Any Key)..." />
+
+                    <Button Grid.Column="1"
+                            Command="{Binding ClearSearchCommand}"
+                            Padding="10,6"
+                            Content="Xóa tìm kiếm" />
+
+                    <CheckBox Grid.Column="2"
+                              IsChecked="{Binding FilterPreviewBySearch}"
+                              Content="Chỉ hiện dòng khớp từ khóa ở bảng Xem trước"
+                              VerticalAlignment="Center" />
+                </Grid>
+
+                <WrapPanel Grid.Row="1" Orientation="Horizontal">
+                    <TextBlock Text="Nguồn quét:"
+                               Foreground="#94A3B8"
+                               VerticalAlignment="Center"
+                               Margin="0,0,10,0" />
+                    <CheckBox IsChecked="{Binding IncludeLooseFiles}" Content="Loose Files (StreamingAssets)" Margin="0,0,16,0" />
+                    <CheckBox IsChecked="{Binding IncludeTextAssets}" Content="TextAsset (.assets / .bundle)" Margin="0,0,16,0" />
+                    <CheckBox IsChecked="{Binding IncludeMonoBehaviours}" Content="MonoBehaviour (ScriptableObject / I2)" Margin="0,0,16,0" />
+                    <CheckBox IsChecked="{Binding IncludeCodeStrings}" Content="Code &amp; Metadata (DLL / IL2CPP)" Margin="0,0,24,0" />
+
+                    <ToggleSwitch IsChecked="{Binding ShowSystemNoise}"
+                                  OffContent="Đang bật Lọc thông minh (Ẩn rác hệ thống)"
+                                  OnContent="Hiện tất cả (Bao gồm biến code &amp; chuỗi hệ thống)" />
+                </WrapPanel>
+            </Grid>
+        </Border>
+
+        <!-- 3. TWO-COLUMN MAIN WORKSPACE -->
+        <Grid Grid.Row="2" ColumnDefinitions="460,8,*">
+
+            <!-- LEFT PANE: Discovered Targets List -->
+            <Border Grid.Column="0"
+                    Background="#1E293B"
+                    BorderBrush="#334155"
+                    BorderThickness="1"
+                    CornerRadius="8"
+                    Padding="10">
+                <Grid RowDefinitions="Auto,Auto,*" RowSpacing="8">
+                    <Grid Grid.Row="0" ColumnDefinitions="*,Auto,Auto" ColumnSpacing="6">
+                        <TextBlock Text="Danh Sách Nguồn Chứa Text"
+                                   FontWeight="Bold"
+                                   FontSize="14"
+                                   VerticalAlignment="Center" />
+                        <Button Grid.Column="1"
+                                Command="{Binding SelectAllVisibleCommand}"
+                                FontSize="12"
+                                Padding="8,4"
+                                Content="Tick tất cả đang lọc" />
+                        <Button Grid.Column="2"
+                                Command="{Binding ClearAllSelectionsCommand}"
+                                FontSize="12"
+                                Padding="8,4"
+                                Content="Bỏ chọn" />
+                    </Grid>
+
+                    <TextBlock Grid.Row="1"
+                               Text="{Binding SelectionSummary}"
+                               Foreground="#94A3B8"
+                               FontSize="12" />
+
+                    <ListBox Grid.Row="2"
+                             ItemsSource="{Binding FilteredTargets}"
+                             SelectedItem="{Binding SelectedTarget}"
+                             Background="#0F172A"
+                             CornerRadius="6">
+                        <ListBox.ItemTemplate>
+                            <DataTemplate x:DataType="vm:ScannedTargetItemViewModel">
+                                <Grid ColumnDefinitions="Auto,58,*,Auto" ColumnSpacing="8" Margin="2,3">
+                                    <CheckBox Grid.Column="0"
+                                              IsChecked="{Binding IsSelected}"
+                                              VerticalAlignment="Center" />
+
+                                    <Border Grid.Column="1"
+                                            Background="{Binding SourceBadgeBrush}"
+                                            CornerRadius="4"
+                                            Padding="5,2"
+                                            HorizontalAlignment="Stretch"
+                                            VerticalAlignment="Center">
+                                        <TextBlock Text="{Binding SourceBadgeText}"
+                                                   FontSize="10"
+                                                   FontWeight="Bold"
+                                                   Foreground="White"
+                                                   HorizontalAlignment="Center" />
+                                    </Border>
+
+                                    <StackPanel Grid.Column="2" Spacing="2">
+                                        <TextBlock Text="{Binding DisplayName}"
+                                                   FontWeight="SemiBold"
+                                                   FontSize="13"
+                                                   TextTrimming="CharacterEllipsis" />
+                                        <TextBlock Text="{Binding ContainerSubtitle}"
+                                                   Foreground="#94A3B8"
+                                                   FontSize="11"
+                                                   TextTrimming="CharacterEllipsis" />
+                                    </StackPanel>
+
+                                    <StackPanel Grid.Column="3" HorizontalAlignment="Right" Spacing="2">
+                                        <TextBlock Text="{Binding ScoreBadge}"
+                                                   Foreground="#38BDF8"
+                                                   FontSize="11"
+                                                   HorizontalAlignment="Right" />
+                                        <TextBlock Text="{Binding EntryCountBadge}"
+                                                   Foreground="#CBD5E1"
+                                                   FontSize="11"
+                                                   HorizontalAlignment="Right" />
+                                    </StackPanel>
+                                </Grid>
+                            </DataTemplate>
+                        </ListBox.ItemTemplate>
+                    </ListBox>
+                </Grid>
+            </Border>
+
+            <GridSplitter Grid.Column="1" Background="Transparent" ResizeDirection="Columns" />
+
+            <!-- RIGHT PANE: Live Preview & Encrypted Warnings -->
+            <Border Grid.Column="2"
+                    Background="#1E293B"
+                    BorderBrush="#334155"
+                    BorderThickness="1"
+                    CornerRadius="8"
+                    Padding="12">
+                <Grid RowDefinitions="Auto,*" RowSpacing="8">
+                    <StackPanel Grid.Row="0" Spacing="3">
+                        <TextBlock Text="{Binding PreviewHeaderTitle}"
+                                   FontWeight="Bold"
+                                   FontSize="15"
+                                   Foreground="#F8FAFC" />
+                        <TextBlock Text="{Binding PreviewHeaderMeta}"
+                                   FontSize="12"
+                                   Foreground="#94A3B8"
+                                   TextWrapping="Wrap" />
+                    </StackPanel>
+
+                    <TabControl Grid.Row="1" SelectedIndex="{Binding SelectedRightTabIndex}">
+                        <!-- TAB 1: Structured Extracted Sentences -->
+                        <TabItem Header="Bảng Câu Chữ Đã Bóc Tách">
+                            <Grid RowDefinitions="Auto,*">
+                                <Border Grid.Row="0"
+                                        Background="#334155"
+                                        CornerRadius="4"
+                                        Padding="10,6"
+                                        Margin="0,4,0,6">
+                                    <Grid ColumnDefinitions="240,*,220" ColumnSpacing="10">
+                                        <TextBlock Grid.Column="0" Text="Key / Đường dẫn định vị" FontWeight="Bold" FontSize="12" />
+                                        <TextBlock Grid.Column="1" Text="Nội dung gốc (Original Text)" FontWeight="Bold" FontSize="12" />
+                                        <TextBlock Grid.Column="2" Text="Ngữ cảnh (Context)" FontWeight="Bold" FontSize="12" />
+                                    </Grid>
+                                </Border>
+
+                                <ListBox Grid.Row="1"
+                                         ItemsSource="{Binding PreviewEntries}"
+                                         Background="#0F172A"
+                                         CornerRadius="6">
+                                    <ListBox.ItemTemplate>
+                                        <DataTemplate x:DataType="vm:PreviewEntryItem">
+                                            <Border BorderBrush="#1E293B" BorderThickness="0,0,0,1" Padding="6,6">
+                                                <Grid ColumnDefinitions="240,*,220" ColumnSpacing="10">
+                                                    <StackPanel Grid.Column="0" Spacing="2">
+                                                        <SelectableTextBlock Text="{Binding Key}"
+                                                                             Foreground="#93C5FD"
+                                                                             FontSize="12"
+                                                                             TextWrapping="Wrap" />
+                                                        <TextBlock Text="{Binding NoiseTag}"
+                                                                   Foreground="#F87171"
+                                                                   FontSize="10"
+                                                                   IsVisible="{Binding IsSystemNoise}" />
+                                                    </StackPanel>
+
+                                                    <SelectableTextBlock Grid.Column="1"
+                                                                         Text="{Binding OriginalText}"
+                                                                         Foreground="#F1F5F9"
+                                                                         FontSize="13"
+                                                                         TextWrapping="Wrap" />
+
+                                                    <SelectableTextBlock Grid.Column="2"
+                                                                         Text="{Binding Context}"
+                                                                         Foreground="#94A3B8"
+                                                                         FontSize="11"
+                                                                         TextWrapping="Wrap" />
+                                                </Grid>
+                                            </Border>
+                                        </DataTemplate>
+                                    </ListBox.ItemTemplate>
+                                </ListBox>
+                            </Grid>
+                        </TabItem>
+
+                        <!-- TAB 2: Raw Original File Content -->
+                        <TabItem Header="Nội Dung Raw (Nguyên Bản)">
+                            <TextBox Text="{Binding PreviewRawText}"
+                                     IsReadOnly="True"
+                                     AcceptsReturn="True"
+                                     TextWrapping="NoWrap"
+                                     FontFamily="Consolas, Monospace"
+                                     FontSize="12"
+                                     Background="#0F172A"
+                                     Margin="0,4,0,0" />
+                        </TabItem>
+
+                        <!-- TAB 3: Suspected Encrypted Files -->
+                        <TabItem Header="Cảnh Báo File Nghi Mã Hóa">
+                            <ListBox ItemsSource="{Binding EncryptedWarnings}"
+                                     Background="#0F172A"
+                                     CornerRadius="6"
+                                     Margin="0,4,0,0">
+                                <ListBox.ItemTemplate>
+                                    <DataTemplate x:DataType="models:EncryptedFileWarning">
+                                        <StackPanel Spacing="3" Margin="6">
+                                            <TextBlock Text="{Binding RelativePath}"
+                                                       Foreground="#FCA5A5"
+                                                       FontWeight="Bold" />
+                                            <TextBlock Text="{Binding FileCategory}"
+                                                       Foreground="#FDBA74"
+                                                       FontSize="11" />
+                                            <TextBlock Text="{Binding Reason}"
+                                                       Foreground="#CBD5E1"
+                                                       FontSize="12"
+                                                       TextWrapping="Wrap" />
+                                        </StackPanel>
+                                    </DataTemplate>
+                                </ListBox.ItemTemplate>
+                            </ListBox>
+                        </TabItem>
+                    </TabControl>
+                </Grid>
+            </Border>
+        </Grid>
+
+        <!-- 4. BOTTOM ACTION & EXPORT BAR -->
+        <Border Grid.Row="3"
+                Background="#1E293B"
+                BorderBrush="#334155"
+                BorderThickness="1"
+                CornerRadius="8"
+                Padding="14,10"
+                Margin="0,10,0,0">
+            <Grid ColumnDefinitions="*,Auto" ColumnSpacing="20">
+                <StackPanel Grid.Column="0" Spacing="6" VerticalAlignment="Center">
+                    <TextBlock Text="{Binding StatusMessage}"
+                               FontSize="12"
+                               Foreground="#E2E8F0"
+                               TextTrimming="CharacterEllipsis" />
+                    <ProgressBar Minimum="0"
+                                 Maximum="100"
+                                 Value="{Binding ProgressPercent}"
+                                 Height="6" />
+                </StackPanel>
+
+                <StackPanel Grid.Column="1" Orientation="Horizontal" Spacing="14" VerticalAlignment="Center">
+                    <CheckBox IsChecked="{Binding ExportTranslatorJson}" Content="JSON chuẩn (.translator.json)" />
+                    <CheckBox IsChecked="{Binding ExportCsv}" Content="Bảng CSV (.csv)" />
+                    <CheckBox IsChecked="{Binding IncludeRawFile}" Content="Kèm file Raw gốc" />
+
+                    <Button Command="{Binding OpenLastExportFolderCommand}"
+                            IsVisible="{Binding LastExportDirectory, Converter={x:Static StringConverters.IsNotNullOrEmpty}}"
+                            Padding="12,8"
+                            Content="Mở thư mục vừa xuất" />
+
+                    <Button Click="OnExtractClick"
+                            Background="#10B981"
+                            Foreground="White"
+                            FontWeight="Bold"
+                            Padding="18,9"
+                            Content="Extract ra máy..." />
+                </StackPanel>
+            </Grid>
+        </Border>
+    </Grid>
+</Window>
