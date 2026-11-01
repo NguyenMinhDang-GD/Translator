@@ -30,12 +30,19 @@ internal static class Program
         Console.OutputEncoding = System.Text.Encoding.UTF8;
         string gamePath = args[1];
         string? extractOutDir = null;
+        SourceLanguageFilter langFilter = SourceLanguageFilter.All;
 
         for (int i = 2; i + 1 < args.Length; i++)
         {
             if (args[i].Equals("--extract", StringComparison.OrdinalIgnoreCase))
             {
                 extractOutDir = args[i + 1];
+                i++;
+            }
+            else if (args[i].Equals("--lang", StringComparison.OrdinalIgnoreCase))
+            {
+                langFilter = ParseCliLanguage(args[i + 1]);
+                i++;
             }
         }
 
@@ -57,9 +64,9 @@ internal static class Program
 
         await coordinator.RunPhase2DeepIndexingAsync(adapter, profile, phase1.Targets);
 
-        foreach (ScannedTarget t in phase1.Targets.Where(x => !x.IsLikelyNoise))
+        foreach (ScannedTarget t in phase1.Targets.Where(x => !x.IsLikelyNoise && x.GetValidCountForFilter(langFilter) > 0))
         {
-            Console.WriteLine($"  + [{t.SourceKind}] {t.DisplayName} ({t.ContainerRelativePath}) -> {t.ValidEntryCount} câu hợp lệ (Score={t.RelevanceScore})");
+            Console.WriteLine($"  + [{t.SourceKind}] {t.DisplayName} ({t.ContainerRelativePath}) -> {t.GetValidCountForFilter(langFilter)} câu [{langFilter}] (Score={t.RelevanceScore})");
         }
 
         foreach (EncryptedFileWarning w in phase1.EncryptedWarnings)
@@ -82,12 +89,23 @@ internal static class Program
                     OutputDirectory = extractOutDir,
                     ExportTranslatorJson = true,
                     ExportCsv = true,
-                    IncludeRawFile = true
+                    IncludeRawFile = false,
+                    LanguageFilter = langFilter
                 });
 
-            Console.WriteLine($"[EXTRACTED] Đã xuất {summary.ExportedTargetCount} mục ({summary.ExportedEntryCount} câu) ra: {summary.OutputDirectory}");
+            Console.WriteLine($"[EXTRACTED] Đã xuất [{langFilter}] {summary.ExportedTargetCount} mục ({summary.ExportedEntryCount} câu) ra: {summary.OutputDirectory}");
         }
 
         return 0;
     }
+
+    private static SourceLanguageFilter ParseCliLanguage(string value) =>
+        value.Trim().ToLowerInvariant() switch
+        {
+            "1" or "en" or "english" => SourceLanguageFilter.English,
+            "2" or "cn" or "zh" or "china" or "chinese" => SourceLanguageFilter.Chinese,
+            "3" or "ru" or "russian" => SourceLanguageFilter.Russian,
+            "4" or "jp" or "ja" or "japan" or "japanese" => SourceLanguageFilter.Japanese,
+            _ => SourceLanguageFilter.All
+        };
 }

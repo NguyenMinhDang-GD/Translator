@@ -5,6 +5,7 @@ using CommunityToolkit.Mvvm.ComponentModel;
 using CommunityToolkit.Mvvm.Input;
 using Translator.Core.Abstractions;
 using Translator.Core.Exporting;
+using Translator.Core.Filters;
 using Translator.Core.Indexing;
 using Translator.Core.Models;
 using Translator.Engines.Unity;
@@ -27,11 +28,24 @@ public sealed partial class MainWindowViewModel : ObservableObject, IDisposable
     public MainWindowViewModel()
     {
         _coordinator = new TwoPhaseScanCoordinator([_unityAdapter]);
+        LanguageOptions =
+        [
+            new LanguageFilterOption(SourceLanguageFilter.English, "1. English (Tiếng Anh)", "EN"),
+            new LanguageFilterOption(SourceLanguageFilter.Chinese, "2. China (Tiếng Trung)", "CN"),
+            new LanguageFilterOption(SourceLanguageFilter.Russian, "3. Russian (Tiếng Nga)", "RU"),
+            new LanguageFilterOption(SourceLanguageFilter.Japanese, "4. Japan (Tiếng Nhật)", "JP"),
+            new LanguageFilterOption(SourceLanguageFilter.All, "Tất cả ngôn ngữ (All)", "ALL")
+        ];
+        _selectedLanguageOption = LanguageOptions[0];
     }
 
+    public IReadOnlyList<LanguageFilterOption> LanguageOptions { get; }
     public ObservableCollection<ScannedTargetItemViewModel> FilteredTargets { get; } = [];
     public ObservableCollection<PreviewEntryItem> PreviewEntries { get; } = [];
     public ObservableCollection<EncryptedFileWarning> EncryptedWarnings { get; } = [];
+
+    [ObservableProperty]
+    private LanguageFilterOption _selectedLanguageOption;
 
     [ObservableProperty]
     private string _gameFolderPath = string.Empty;
@@ -108,6 +122,21 @@ public sealed partial class MainWindowViewModel : ObservableObject, IDisposable
     [ObservableProperty]
     private int _selectedRightTabIndex;
 
+    public SourceLanguageFilter ActiveLanguageFilter => SelectedLanguageOption?.Filter ?? SourceLanguageFilter.All;
+
+    partial void OnSelectedLanguageOptionChanged(LanguageFilterOption value)
+    {
+        SourceLanguageFilter filter = value?.Filter ?? SourceLanguageFilter.All;
+        foreach (ScannedTargetItemViewModel item in _allTargets)
+        {
+            item.SetLanguageFilter(filter);
+        }
+
+        ApplyFilters(preserveSelection: true);
+        UpdateActivePreviewHeader();
+        RefreshActivePreviewEntries();
+    }
+
     partial void OnSearchQueryChanged(string value)
     {
         ApplyFilters();
@@ -177,7 +206,7 @@ public sealed partial class MainWindowViewModel : ObservableObject, IDisposable
                 ProgressPercent = pct;
                 string phaseLabel = p.Phase == "Phase1"
                     ? "Pha 1 (Quét danh sách nhanh)"
-                    : "Pha 2 (Đánh chỉ mục Full-Text chạy ngầm)";
+                    : "Pha 2 (Đánh chỉ mục Full-Text & Phân loại ngôn ngữ)";
                 StatusMessage = $"{phaseLabel}: {p.CompletedCount:N0}/{p.TotalCount:N0} — {p.CurrentItem}";
             });
 
@@ -192,9 +221,12 @@ public sealed partial class MainWindowViewModel : ObservableObject, IDisposable
             HasEncryptedWarnings = EncryptedWarnings.Count > 0;
             EncryptedBadgeText = $"{EncryptedWarnings.Count} cảnh báo mã hóa";
 
+            SourceLanguageFilter currentLang = ActiveLanguageFilter;
             foreach (ScannedTarget target in phase1.Targets)
             {
-                _allTargets.Add(new ScannedTargetItemViewModel(target, UpdateSelectionSummary));
+                var vm = new ScannedTargetItemViewModel(target, UpdateSelectionSummary);
+                vm.SetLanguageFilter(currentLang);
+                _allTargets.Add(vm);
             }
 
             ApplyFilters();
@@ -204,7 +236,7 @@ public sealed partial class MainWindowViewModel : ObservableObject, IDisposable
                 SelectedTarget = FilteredTargets[0];
             }
 
-            StatusMessage = $"Pha 1 hoàn tất ({_allTargets.Count:N0} mục). Đang chạy ngầm Pha 2 đánh chỉ mục câu thoại toàn game...";
+            StatusMessage = $"Pha 1 hoàn tất ({_allTargets.Count:N0} mục). Đang chạy ngầm Pha 2 đánh chỉ mục câu thoại & nhận diện ngôn ngữ...";
 
             // PHASE 2: Background Deep Indexing
             await _coordinator.RunPhase2DeepIndexingAsync(
@@ -235,7 +267,7 @@ public sealed partial class MainWindowViewModel : ObservableObject, IDisposable
 
             ApplyFilters(preserveSelection: true);
             ProgressPercent = 100;
-            StatusMessage = $"Hoàn tất quét & đánh chỉ mục 100%! Hiển thị {FilteredTargets.Count:N0} / {_allTargets.Count:N0} mục — Sẵn sàng tìm kiếm câu thoại & Extract.";
+            StatusMessage = $"Hoàn tất quét & phân loại ngôn ngữ 100%! Hiển thị {FilteredTargets.Count:N0} / {_allTargets.Count:N0} mục.";
         }
         catch (OperationCanceledException)
         {
@@ -344,7 +376,6 @@ public sealed partial class MainWindowViewModel : ObservableObject, IDisposable
             return checkedTargets;
         }
 
-        // Convenience: If user didn't tick checkboxes, extract the currently previewed target!
         if (SelectedTarget is not null)
         {
             return [SelectedTarget.Model];
@@ -376,19 +407,23 @@ public sealed partial class MainWindowViewModel : ObservableObject, IDisposable
         IsBusy = true;
         ProgressPercent = 0;
 
+        SourceLanguageFilter langFilter = ActiveLanguageFilter;
+        string langLabel = SelectedLanguageOption?.DisplayLabel ?? "All";
+
         var options = new ExportOptions
         {
             OutputDirectory = outputFolder,
             ExportTranslatorJson = ExportTranslatorJson,
             ExportCsv = ExportCsv,
             IncludeRawFile = IncludeRawFile,
-            IncludeSystemNoiseEntries = ShowSystemNoise
+            IncludeSystemNoiseEntries = ShowSystemNoise,
+            LanguageFilter = langFilter
         };
 
         var progress = new Progress<ScanProgress>(p =>
         {
             ProgressPercent = p.TotalCount > 0 ? (double)p.CompletedCount / p.TotalCount * 100.0 : 0;
-            StatusMessage = $"Đang Extract ({p.CompletedCount}/{p.TotalCount}): {p.CurrentItem}";
+            StatusMessage = $"Đang Extract [{langLabel}] ({p.CompletedCount}/{p.TotalCount}): {p.CurrentItem}";
         });
 
         try
@@ -410,7 +445,7 @@ public sealed partial class MainWindowViewModel : ObservableObject, IDisposable
                 ? $" ({summary.Errors.Count} cảnh báo)"
                 : string.Empty;
 
-            StatusMessage = $"Extract thành công {summary.ExportedTargetCount:N0} mục ({summary.ExportedEntryCount:N0} dòng câu chữ) tới: {summary.OutputDirectory}{errSuffix}";
+            StatusMessage = $"Extract [{langLabel}] thành công {summary.ExportedTargetCount:N0} mục ({summary.ExportedEntryCount:N0} câu) tới: {summary.OutputDirectory}{errSuffix}";
             return summary;
         }
         catch (Exception ex)
@@ -427,6 +462,7 @@ public sealed partial class MainWindowViewModel : ObservableObject, IDisposable
     private void ApplyFilters(bool preserveSelection = true)
     {
         ScannedTargetItemViewModel? previousSelected = SelectedTarget;
+        SourceLanguageFilter langFilter = ActiveLanguageFilter;
 
         IEnumerable<ScannedTargetItemViewModel> query = _allTargets.Where(item =>
         {
@@ -436,9 +472,20 @@ public sealed partial class MainWindowViewModel : ObservableObject, IDisposable
             if (kind == TextSourceKind.MonoBehaviour && !IncludeMonoBehaviours) return false;
             if (kind == TextSourceKind.CodeString && !IncludeCodeStrings) return false;
 
-            if (!ShowSystemNoise && item.Model.IsLikelyNoise)
+            if (!ShowSystemNoise)
             {
-                return false;
+                if (item.Model.IsLikelyNoise)
+                {
+                    return false;
+                }
+
+                // Hide targets that are already indexed and contain 0 sentences in the selected language
+                if (langFilter != SourceLanguageFilter.All &&
+                    item.Model.IsIndexed &&
+                    item.Model.GetValidCountForFilter(langFilter) == 0)
+                {
+                    return false;
+                }
             }
 
             if (!string.IsNullOrWhiteSpace(SearchQuery))
@@ -452,7 +499,7 @@ public sealed partial class MainWindowViewModel : ObservableObject, IDisposable
         List<ScannedTargetItemViewModel> sorted = query
             .OrderBy(i => i.Model.IsLikelyNoise ? 1 : 0)
             .ThenByDescending(i => i.Model.RelevanceScore)
-            .ThenByDescending(i => i.Model.ValidEntryCount)
+            .ThenByDescending(i => i.Model.GetValidCountForFilter(langFilter))
             .ThenBy(i => i.DisplayName, StringComparer.OrdinalIgnoreCase)
             .ToList();
 
@@ -502,9 +549,7 @@ public sealed partial class MainWindowViewModel : ObservableObject, IDisposable
             }
 
             _activePreviewContent = content;
-            string pathIdStr = item.Model.PrimaryPathId.HasValue ? $" • PathID: {item.Model.PrimaryPathId.Value}" : string.Empty;
-            PreviewHeaderMeta = $"Nguồn: {item.Model.SourceKind} • Định dạng: {content.InnerFormat}{pathIdStr} • Hợp lệ: {item.Model.ValidEntryCount:N0} / {item.Model.TotalEntryCount:N0} dòng • File: {item.ContainerSubtitle}";
-
+            UpdateActivePreviewHeader();
             PreviewRawText = content.RawText ?? "(Nguồn dữ liệu nhị phân cấu trúc — xem ở tab 'Bảng Câu Chữ Đã Bóc Tách')";
             RefreshActivePreviewEntries();
         }
@@ -518,6 +563,23 @@ public sealed partial class MainWindowViewModel : ObservableObject, IDisposable
         }
     }
 
+    private void UpdateActivePreviewHeader()
+    {
+        if (SelectedTarget is null || _activePreviewContent is null)
+        {
+            return;
+        }
+
+        ScannedTarget m = SelectedTarget.Model;
+        string pathIdStr = m.PrimaryPathId.HasValue ? $" • PathID: {m.PrimaryPathId.Value}" : string.Empty;
+        SourceLanguageFilter langFilter = ActiveLanguageFilter;
+        string langCountInfo = langFilter == SourceLanguageFilter.All
+            ? $"Hợp lệ: {m.ValidEntryCount:N0} / {m.TotalEntryCount:N0} dòng"
+            : $"Khớp ngôn ngữ [{SelectedLanguageOption.ShortCode}]: {m.GetValidCountForFilter(langFilter):N0} / {m.ValidEntryCount:N0} câu hợp lệ";
+
+        PreviewHeaderMeta = $"Nguồn: {m.SourceKind} • Định dạng: {_activePreviewContent.InnerFormat}{pathIdStr} • {langCountInfo} • File: {SelectedTarget.ContainerSubtitle}";
+    }
+
     private void RefreshActivePreviewEntries()
     {
         PreviewEntries.Clear();
@@ -528,14 +590,19 @@ public sealed partial class MainWindowViewModel : ObservableObject, IDisposable
 
         string q = SearchQuery.Trim();
         bool hasSearch = FilterPreviewBySearch && !string.IsNullOrEmpty(q);
+        SourceLanguageFilter langFilter = ActiveLanguageFilter;
 
-        // Cap live UI preview rows at 2,500 so giant 80,000-string metadata files render instantaneously
         const int maxPreviewRows = 2500;
         int added = 0;
 
         foreach (TextEntry entry in _activePreviewContent.Entries)
         {
             if (!ShowSystemNoise && entry.IsSystemNoise)
+            {
+                continue;
+            }
+
+            if (!LanguageDetector.MatchesFilter(entry.Language, langFilter))
             {
                 continue;
             }
@@ -554,7 +621,8 @@ public sealed partial class MainWindowViewModel : ObservableObject, IDisposable
                 entry.OriginalText,
                 entry.Context,
                 entry.IsSystemNoise,
-                entry.RelevanceScore));
+                entry.RelevanceScore,
+                entry.Language));
 
             added++;
             if (added >= maxPreviewRows)

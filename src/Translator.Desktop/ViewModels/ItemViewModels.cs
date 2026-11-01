@@ -4,6 +4,11 @@ using Translator.Core.Models;
 
 namespace Translator.Desktop.ViewModels;
 
+public sealed record LanguageFilterOption(
+    SourceLanguageFilter Filter,
+    string DisplayLabel,
+    string ShortCode);
+
 public sealed partial class ScannedTargetItemViewModel : ObservableObject
 {
     private static readonly IBrush LooseBrush = SolidColorBrush.Parse("#059669");
@@ -12,6 +17,7 @@ public sealed partial class ScannedTargetItemViewModel : ObservableObject
     private static readonly IBrush CodeBrush = SolidColorBrush.Parse("#D97706");
 
     private readonly Action? _onSelectionChanged;
+    private SourceLanguageFilter _activeLanguageFilter = SourceLanguageFilter.English;
 
     public ScannedTargetItemViewModel(ScannedTarget model, Action? onSelectionChanged = null)
     {
@@ -55,11 +61,43 @@ public sealed partial class ScannedTargetItemViewModel : ObservableObject
 
     public string ScoreBadge => $"Điểm: {Model.RelevanceScore}";
 
-    public string EntryCountBadge => !Model.IsIndexed
-        ? FormatBytes(Model.EstimatedSizeBytes)
-        : $"{Model.ValidEntryCount:N0} câu ({Model.TotalEntryCount:N0} tổng)";
+    public string EntryCountBadge
+    {
+        get
+        {
+            if (!Model.IsIndexed)
+            {
+                return FormatBytes(Model.EstimatedSizeBytes);
+            }
+
+            if (_activeLanguageFilter == SourceLanguageFilter.All)
+            {
+                return $"{Model.ValidEntryCount:N0} câu ({Model.TotalEntryCount:N0} tổng)";
+            }
+
+            int langCount = Model.GetValidCountForFilter(_activeLanguageFilter);
+            string code = _activeLanguageFilter switch
+            {
+                SourceLanguageFilter.English => "EN",
+                SourceLanguageFilter.Chinese => "CN",
+                SourceLanguageFilter.Russian => "RU",
+                SourceLanguageFilter.Japanese => "JP",
+                _ => ""
+            };
+            return $"{langCount:N0} câu {code} ({Model.ValidEntryCount:N0} tổng)";
+        }
+    }
 
     public bool IsNoiseFlagged => Model.IsLikelyNoise;
+
+    public void SetLanguageFilter(SourceLanguageFilter filter)
+    {
+        if (_activeLanguageFilter != filter)
+        {
+            _activeLanguageFilter = filter;
+            OnPropertyChanged(nameof(EntryCountBadge));
+        }
+    }
 
     public void NotifyMetadataUpdated()
     {
@@ -90,7 +128,18 @@ public sealed record PreviewEntryItem(
     string OriginalText,
     string Context,
     bool IsSystemNoise,
-    int RelevanceScore)
+    int RelevanceScore,
+    DetectedLanguage Language)
 {
     public string NoiseTag => IsSystemNoise ? "[Hệ thống]" : string.Empty;
+
+    public string LanguageBadge => Language switch
+    {
+        DetectedLanguage.English => "EN",
+        DetectedLanguage.Chinese => "CN",
+        DetectedLanguage.Russian => "RU",
+        DetectedLanguage.Japanese => "JP",
+        DetectedLanguage.Other => "OTHER",
+        _ => "AUTO"
+    };
 }

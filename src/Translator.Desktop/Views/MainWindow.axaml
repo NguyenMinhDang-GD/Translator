@@ -5,9 +5,9 @@
         x:Class="Translator.Desktop.Views.MainWindow"
         x:DataType="vm:MainWindowViewModel"
         Title="Game Translator — Unity Text Scanner &amp; Extractor"
-        Width="1360"
+        Width="1380"
         Height="860"
-        MinWidth="1020"
+        MinWidth="1060"
         MinHeight="640"
         Background="#0F172A"
         WindowStartupLocation="CenterScreen">
@@ -72,7 +72,7 @@
             </Grid>
         </Border>
 
-        <!-- 2. FILTER & FULL-TEXT SEARCH BAR -->
+        <!-- 2. FILTER, LANGUAGE SELECTOR & FULL-TEXT SEARCH BAR -->
         <Border Grid.Row="1"
                 Background="#1E293B"
                 BorderBrush="#334155"
@@ -81,7 +81,7 @@
                 Padding="14,10"
                 Margin="0,0,0,10">
             <Grid RowDefinitions="Auto,Auto" RowSpacing="8">
-                <Grid Grid.Row="0" ColumnDefinitions="*,Auto,Auto" ColumnSpacing="10">
+                <Grid Grid.Row="0" ColumnDefinitions="*,Auto,Auto,Auto,210" ColumnSpacing="10">
                     <TextBox Grid.Column="0"
                              Text="{Binding SearchQuery}"
                              PlaceholderText="Tìm tên file hoặc gõ trực tiếp câu thoại nhìn thấy trong game (VD: New Game, Press Any Key)..." />
@@ -93,8 +93,27 @@
 
                     <CheckBox Grid.Column="2"
                               IsChecked="{Binding FilterPreviewBySearch}"
-                              Content="Chỉ hiện dòng khớp từ khóa ở bảng Xem trước"
+                              Content="Lọc bảng Xem trước"
                               VerticalAlignment="Center" />
+
+                    <TextBlock Grid.Column="3"
+                               Text="Ngôn ngữ Extract:"
+                               Foreground="#38BDF8"
+                               FontWeight="Bold"
+                               VerticalAlignment="Center"
+                               Margin="6,0,0,0" />
+
+                    <ComboBox Grid.Column="4"
+                              ItemsSource="{Binding LanguageOptions}"
+                              SelectedItem="{Binding SelectedLanguageOption}"
+                              HorizontalAlignment="Stretch"
+                              VerticalAlignment="Center">
+                        <ComboBox.ItemTemplate>
+                            <DataTemplate x:DataType="vm:LanguageFilterOption">
+                                <TextBlock Text="{Binding DisplayLabel}" FontWeight="SemiBold" />
+                            </DataTemplate>
+                        </ComboBox.ItemTemplate>
+                    </ComboBox>
                 </Grid>
 
                 <WrapPanel Grid.Row="1" Orientation="Horizontal">
@@ -230,10 +249,11 @@
                                         CornerRadius="4"
                                         Padding="10,6"
                                         Margin="0,4,0,6">
-                                    <Grid ColumnDefinitions="240,*,220" ColumnSpacing="10">
-                                        <TextBlock Grid.Column="0" Text="Key / Đường dẫn định vị" FontWeight="Bold" FontSize="12" />
-                                        <TextBlock Grid.Column="1" Text="Nội dung gốc (Original Text)" FontWeight="Bold" FontSize="12" />
-                                        <TextBlock Grid.Column="2" Text="Ngữ cảnh (Context)" FontWeight="Bold" FontSize="12" />
+                                    <Grid ColumnDefinitions="46,220,*,210" ColumnSpacing="10">
+                                        <TextBlock Grid.Column="0" Text="Ngôn ngữ" FontWeight="Bold" FontSize="11" />
+                                        <TextBlock Grid.Column="1" Text="Key / Đường dẫn định vị" FontWeight="Bold" FontSize="12" />
+                                        <TextBlock Grid.Column="2" Text="Nội dung gốc (Original Text)" FontWeight="Bold" FontSize="12" />
+                                        <TextBlock Grid.Column="3" Text="Ngữ cảnh (Context)" FontWeight="Bold" FontSize="12" />
                                     </Grid>
                                 </Border>
 
@@ -244,8 +264,20 @@
                                     <ListBox.ItemTemplate>
                                         <DataTemplate x:DataType="vm:PreviewEntryItem">
                                             <Border BorderBrush="#1E293B" BorderThickness="0,0,0,1" Padding="6,6">
-                                                <Grid ColumnDefinitions="240,*,220" ColumnSpacing="10">
-                                                    <StackPanel Grid.Column="0" Spacing="2">
+                                                <Grid ColumnDefinitions="46,220,*,210" ColumnSpacing="10">
+                                                    <Border Grid.Column="0"
+                                                            Background="#334155"
+                                                            CornerRadius="4"
+                                                            Padding="4,2"
+                                                            VerticalAlignment="Top"
+                                                            HorizontalAlignment="Center">
+                                                        <TextBlock Text="{Binding LanguageBadge}"
+                                                                   Foreground="#38BDF8"
+                                                                   FontSize="10"
+                                                                   FontWeight="Bold" />
+                                                    </Border>
+
+                                                    <StackPanel Grid.Column="1" Spacing="2">
                                                         <SelectableTextBlock Text="{Binding Key}"
                                                                              Foreground="#93C5FD"
                                                                              FontSize="12"
@@ -256,13 +288,13 @@
                                                                    IsVisible="{Binding IsSystemNoise}" />
                                                     </StackPanel>
 
-                                                    <SelectableTextBlock Grid.Column="1"
+                                                    <SelectableTextBlock Grid.Column="2"
                                                                          Text="{Binding OriginalText}"
                                                                          Foreground="#F1F5F9"
                                                                          FontSize="13"
                                                                          TextWrapping="Wrap" />
 
-                                                    <SelectableTextBlock Grid.Column="2"
+                                                    <SelectableTextBlock Grid.Column="3"
                                                                          Text="{Binding Context}"
                                                                          Foreground="#94A3B8"
                                                                          FontSize="11"
@@ -324,7 +356,7 @@
                 CornerRadius="8"
                 Padding="14,10"
                 Margin="0,10,0,0">
-            <Grid ColumnDefinitions="*,Auto" ColumnSpacing="20">
+            <Grid ColumnDefinitions="*,Auto" ColumnSpacing="16">
                 <StackPanel Grid.Column="0" Spacing="6" VerticalAlignment="Center">
                     <TextBlock Text="{Binding StatusMessage}"
                                FontSize="12"
@@ -336,10 +368,21 @@
                                  Height="6" />
                 </StackPanel>
 
-                <StackPanel Grid.Column="1" Orientation="Horizontal" Spacing="14" VerticalAlignment="Center">
-                    <CheckBox IsChecked="{Binding ExportTranslatorJson}" Content="JSON chuẩn (.translator.json)" />
+                <StackPanel Grid.Column="1" Orientation="Horizontal" Spacing="12" VerticalAlignment="Center">
+                    <ComboBox ItemsSource="{Binding LanguageOptions}"
+                              SelectedItem="{Binding SelectedLanguageOption}"
+                              Width="195"
+                              VerticalAlignment="Center">
+                        <ComboBox.ItemTemplate>
+                            <DataTemplate x:DataType="vm:LanguageFilterOption">
+                                <TextBlock Text="{Binding DisplayLabel}" FontWeight="SemiBold" />
+                            </DataTemplate>
+                        </ComboBox.ItemTemplate>
+                    </ComboBox>
+
+                    <CheckBox IsChecked="{Binding ExportTranslatorJson}" Content="JSON (.translator.json)" />
                     <CheckBox IsChecked="{Binding ExportCsv}" Content="Bảng CSV (.csv)" />
-                    <CheckBox IsChecked="{Binding IncludeRawFile}" Content="Kèm file Raw gốc" />
+                    <CheckBox IsChecked="{Binding IncludeRawFile}" Content="Kèm file Raw" />
 
                     <Button Command="{Binding OpenLastExportFolderCommand}"
                             IsVisible="{Binding LastExportDirectory, Converter={x:Static StringConverters.IsNotNullOrEmpty}}"
