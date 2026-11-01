@@ -114,7 +114,7 @@ public static partial class LanguageDetector
                 ? dom
                 : DetectedLanguage.Unknown;
 
-            DetectedLanguage resolved = ClassifySingle(counts, keyHint, slotLang, fileLevelHint);
+            DetectedLanguage resolved = ClassifySingle(entry.OriginalText, counts, keyHint, slotLang, fileLevelHint);
             updated.Add(entry with { Language = resolved });
         }
 
@@ -185,7 +185,21 @@ public static partial class LanguageDetector
         return new ScriptCounts(latin, kana, cjk, cyrillic, hangul, hasSpace);
     }
 
+    private static bool HasChineseExclusiveMarkers(string? text)
+    {
+        if (string.IsNullOrEmpty(text))
+        {
+            return false;
+        }
+
+        // Common Mandarin grammar characters/simplified forms never used in pure-Kanji Japanese UI terms
+        return text.IndexOfAny(['吗', '嗎', '呢', '吧', '这', '這', '们', '們', '没', '沒', '个', '個', '还', '還', '经', '經', '无', '無']) >= 0 ||
+               text.Contains("的", StringComparison.Ordinal) ||
+               text.Contains("了", StringComparison.Ordinal);
+    }
+
     private static DetectedLanguage ClassifySingle(
+        string? rawText,
         ScriptCounts counts,
         DetectedLanguage keyHint,
         DetectedLanguage slotDominant,
@@ -213,10 +227,10 @@ public static partial class LanguageDetector
             return DetectedLanguage.Russian;
         }
 
-        // 4. CJK Ideographs without Kana: Chinese unless inside an established Japanese column/file!
+        // 4. CJK Ideographs without Kana: Chinese unless inside an established Japanese column/file AND free of Chinese-only grammar markers!
         if (counts.CjkIdeographCount > 0)
         {
-            if (contextHint == DetectedLanguage.Japanese)
+            if (contextHint == DetectedLanguage.Japanese && !HasChineseExclusiveMarkers(rawText))
             {
                 return DetectedLanguage.Japanese;
             }
@@ -399,12 +413,11 @@ public static partial class LanguageDetector
                 return DetectedLanguage.Unknown;
             }
 
-            // If >= 18% of CJK/Kana rows in this column have Hiragana/Katakana, the entire column is Japanese (including Kanji-only rows!)
+            // In a genuine Japanese column, rows containing Hiragana/Katakana are >= pure-Kanji rows (>= 50%)
             int cjkFamily = JapaneseKanaRows + PureCjkRows;
             if (cjkFamily >= LatinRows && cjkFamily >= RussianRows && cjkFamily >= OtherRows && cjkFamily > 0)
             {
-                double kanaRatio = (double)JapaneseKanaRows / cjkFamily;
-                return (JapaneseKanaRows >= 2 || kanaRatio >= 0.18)
+                return JapaneseKanaRows >= PureCjkRows
                     ? DetectedLanguage.Japanese
                     : DetectedLanguage.Chinese;
             }
