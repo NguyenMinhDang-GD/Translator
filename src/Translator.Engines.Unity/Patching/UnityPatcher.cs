@@ -72,6 +72,7 @@ public sealed class UnityPatcher : IGameEnginePatcher
         }
 
         var patchedContainers = new List<string>();
+        var successfullyAppliedPayloads = new List<PatchPayload>();
         var warnings = new List<string>();
         var errors = new List<string>();
         int patchedTargets = 0;
@@ -181,6 +182,7 @@ public sealed class UnityPatcher : IGameEnginePatcher
                 if (appliedInContainer > 0)
                 {
                     patchedContainers.Add(containerRelPath);
+                    successfullyAppliedPayloads.AddRange(containerPayloads);
                     patchedTargets += containerPayloads.Count;
                     totalAppliedEntries += appliedInContainer;
                 }
@@ -197,6 +199,13 @@ public sealed class UnityPatcher : IGameEnginePatcher
             {
                 errors.Add($"{containerRelPath}: {ex.Message}");
             }
+        }
+
+        if (successfullyAppliedPayloads.Count > 0)
+        {
+            await backupVault
+                .RecordAppliedPayloadsAsync(profile, successfullyAppliedPayloads, cancellationToken)
+                .ConfigureAwait(false);
         }
 
         return new PatchSummary(

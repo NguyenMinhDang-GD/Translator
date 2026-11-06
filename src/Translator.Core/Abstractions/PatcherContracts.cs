@@ -31,6 +31,15 @@ public interface IBackupVaultService
         GameProfile profile,
         IProgress<ScanProgress>? progress = null,
         CancellationToken cancellationToken = default);
+
+    Task RecordAppliedPayloadsAsync(
+        GameProfile profile,
+        IReadOnlyList<PatchPayload> appliedPayloads,
+        CancellationToken cancellationToken = default);
+
+    Task<IReadOnlyList<PatchPayload>> GetAppliedPayloadsAsync(
+        GameProfile profile,
+        CancellationToken cancellationToken = default);
 }
 
 public interface IGameEnginePatcher

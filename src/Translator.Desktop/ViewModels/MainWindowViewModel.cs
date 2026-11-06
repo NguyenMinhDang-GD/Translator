@@ -27,6 +27,7 @@ public sealed partial class MainWindowViewModel : ObservableObject, IDisposable
     private readonly List<ScannedTargetItemViewModel> _allTargets = [];
     private readonly List<PatchTargetStatusItemViewModel> _allPatchTargetStatuses = [];
     private readonly List<PatchSentenceComparisonItem> _activePatchTargetAllSentences = [];
+    private readonly List<PatchPayload> _persistedDiskPayloads = [];
     private readonly HashSet<string> _appliedTargetKeysOnDisk = new(StringComparer.OrdinalIgnoreCase);
 
     private CancellationTokenSource? _scanCts;
@@ -364,6 +365,7 @@ public sealed partial class MainWindowViewModel : ObservableObject, IDisposable
         FilteredTargets.Clear();
         PreviewEntries.Clear();
         EncryptedWarnings.Clear();
+        _persistedDiskPayloads.Clear();
         _appliedTargetKeysOnDisk.Clear();
         PreviewRawText = string.Empty;
         HasEncryptedWarnings = false;
@@ -418,6 +420,7 @@ public sealed partial class MainWindowViewModel : ObservableObject, IDisposable
 
             UpdateOverviewMetrics();
             ApplyFilters();
+            await LoadOrRecoverPersistedPatchStateAsync(token);
             RebuildPatchStatusOverview();
 
             if (FilteredTargets.Count > 0)
@@ -457,9 +460,13 @@ public sealed partial class MainWindowViewModel : ObservableObject, IDisposable
 
             UpdateOverviewMetrics();
             ApplyFilters(preserveSelection: true);
+            await LoadOrRecoverPersistedPatchStateAsync(token);
             RebuildPatchStatusOverview();
             ProgressPercent = 100;
-            StatusMessage = $"Hoàn tất quét & phân loại ngôn ngữ 100%! Phát hiện {_allTargets.Count:N0} nguồn ({TotalValidEntriesCount:N0} câu hợp lệ).";
+            string patchBadgeNote = PatchedTargetsCount > 0
+                ? $" • Đã phát hiện {PatchedTargetsCount:N0} nguồn đã Việt hóa ({PatchedSentencesTotalCount:N0} câu) ở Mục 3!"
+                : string.Empty;
+            StatusMessage = $"Hoàn tất quét & phân loại ngôn ngữ 100%! Phát hiện {_allTargets.Count:N0} nguồn ({TotalValidEntriesCount:N0} câu hợp lệ){patchBadgeNote}";
         }
         catch (OperationCanceledException)
         {
@@ -720,6 +727,7 @@ public sealed partial class MainWindowViewModel : ObservableObject, IDisposable
         {
             RestoreSummary summary = await _backupVault.RestoreOriginalAsync(_activeProfile, progress);
             _coordinator.InvalidateCache();
+            _persistedDiskPayloads.Clear();
             _appliedTargetKeysOnDisk.Clear();
             await RefreshVaultStatusAsync();
             await LoadPreviewForTargetAsync(SelectedTarget);
@@ -1002,6 +1010,7 @@ public sealed partial class MainWindowViewModel : ObservableObject, IDisposable
 
             _coordinator.InvalidateCache();
             await RefreshVaultStatusAsync();
+            await LoadOrRecoverPersistedPatchStateAsync();
             await LoadPreviewForTargetAsync(SelectedTarget);
             RebuildPatchStatusOverview();
 
@@ -1037,13 +1046,276 @@ public sealed partial class MainWindowViewModel : ObservableObject, IDisposable
     // =========================================================================
     // PAGE 3 SCREEN 2: 2-LEVEL PATCHED VS UNPATCHED TRACKER
     // =========================================================================
+    private async Task LoadOrRecoverPersistedPatchStateAsync(CancellationToken cancellationToken = default)
+    {
+        _persistedDiskPayloads.Clear();
+        if (_activeProfile is null)
+        {
+            return;
+        }
+
+        try
+        {
+            IReadOnlyList<PatchPayload> persisted = await _backupVault
+                .GetAppliedPayloadsAsync(_activeProfile, cancellationToken);
+
+            var coveredContainers = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
+            foreach (PatchPayload p in persisted)
+            {
+                _persistedDiskPayloads.Add(p);
+                _appliedTargetKeysOnDisk.Add(GetPayloadMatchKey(p));
+                coveredContainers.Add(BackupVaultService.NormalizeRelativePath(p.Package.ContainerRelativePath));
+            }
+
+            // If .translator_backup has modified containers on disk that were patched before patched_state.json existed,
+            // automatically diff the backup container against the current game container and persist them!
+            if (_activeAdapter is not null && _allTargets.Count > 0)
+            {
+                VaultStatus vaultStatus = await _backupVault.GetVaultStatusAsync(_activeProfile, cancellationToken);
+                var recoveredPayloads = new List<PatchPayload>();
+
+                foreach (BackupVaultEntry vEntry in vaultStatus.Entries)
+                {
+                    cancellationToken.ThrowIfCancellationRequested();
+                    string normContainer = BackupVaultService.NormalizeRelativePath(vEntry.ContainerRelativePath);
+                    if (coveredContainers.Contains(normContainer))
+                    {
+                        continue;
+                    }
+
+                    string currentGameFile = Path.Combine(
+                        _activeProfile.RootPath,
+                        normContainer.Replace('/', Path.DirectorySeparatorChar));
+
+                    if (!File.Exists(currentGameFile))
+                    {
+                        continue;
+                    }
+
+                    string currentSha = HashUtility.ComputeFileSha256(currentGameFile);
+                    if (string.Equals(currentSha, vEntry.OriginalSha256, StringComparison.OrdinalIgnoreCase))
+                    {
+                        continue;
+                    }
+
+                    List<ScannedTarget> containerTargets = _allTargets
+                        .Select(t => t.Model)
+                        .Where(m => string.Equals(
+                            BackupVaultService.NormalizeRelativePath(m.ContainerRelativePath),
+                            normContainer,
+                            StringComparison.OrdinalIgnoreCase))
+                        .ToList();
+
+                    foreach (ScannedTarget target in containerTargets)
+                    {
+                        cancellationToken.ThrowIfCancellationRequested();
+                        try
+                        {
+                            ScannedTarget backupTarget = CloneTargetInBackupVault(target);
+                            ExtractedTargetContent origContent = await _activeAdapter
+                                .ExtractTargetAsync(_activeProfile, backupTarget, cancellationToken);
+                            ExtractedTargetContent currContent = await _coordinator
+                                .GetOrExtractTargetAsync(_activeAdapter, _activeProfile, target, cancellationToken);
+
+                            List<TextEntry> diffEntries = BuildDiffTranslatedEntries(origContent.Entries, currContent.Entries);
+                            if (diffEntries.Count > 0)
+                            {
+                                var recoveredPkg = new TranslationPackage
+                                {
+                                    Engine = _activeProfile.EngineName,
+                                    EngineVersion = _activeProfile.EngineVersion,
+                                    ScriptingBackend = _activeProfile.ScriptingBackend,
+                                    TargetId = target.TargetId,
+                                    DisplayName = target.DisplayName,
+                                    SourceKind = target.SourceKind,
+                                    ContainerRelativePath = target.ContainerRelativePath,
+                                    BundleMemberName = target.BundleMemberName,
+                                    OriginalContainerSha256 = vEntry.OriginalSha256,
+                                    InnerFormat = origContent.InnerFormat,
+                                    Entries = diffEntries
+                                };
+
+                                var recoveredPayload = new PatchPayload
+                                {
+                                    SourceFilePath = Path.Combine(
+                                        _backupVault.GetVaultRootDirectory(_activeProfile),
+                                        BackupVaultService.PatchedStateFileName),
+                                    Package = recoveredPkg
+                                };
+
+                                recoveredPayloads.Add(recoveredPayload);
+                                _persistedDiskPayloads.Add(recoveredPayload);
+                                _appliedTargetKeysOnDisk.Add(GetPayloadMatchKey(recoveredPayload));
+                                _appliedTargetKeysOnDisk.Add(GetTargetMatchKey(target));
+                            }
+                        }
+                        catch
+                        {
+                        }
+                    }
+                }
+
+                if (recoveredPayloads.Count > 0)
+                {
+                    await _backupVault.RecordAppliedPayloadsAsync(_activeProfile, recoveredPayloads, cancellationToken);
+                }
+            }
+        }
+        catch
+        {
+        }
+    }
+
+    private static ScannedTarget CloneTargetInBackupVault(ScannedTarget target) =>
+        new()
+        {
+            TargetId = $"Backup::{target.TargetId}",
+            DisplayName = target.DisplayName,
+            SourceKind = target.SourceKind,
+            ContainerRelativePath = Path.Combine(BackupVaultService.VaultFolderName, target.ContainerRelativePath),
+            BundleMemberName = target.BundleMemberName,
+            PrimaryPathId = target.PrimaryPathId,
+            ScriptClassName = target.ScriptClassName,
+            EstimatedSizeBytes = target.EstimatedSizeBytes,
+            ObjectCount = target.ObjectCount,
+            RelevanceScore = target.RelevanceScore,
+            IsLikelyNoise = target.IsLikelyNoise,
+            SupportsRawExport = target.SupportsRawExport,
+            DetectedFormat = target.DetectedFormat,
+            GroupedPathIds = target.GroupedPathIds
+        };
+
+    private static List<TextEntry> BuildDiffTranslatedEntries(
+        IReadOnlyList<TextEntry> origEntries,
+        IReadOnlyList<TextEntry> currEntries)
+    {
+        var diff = new List<TextEntry>();
+        if (origEntries.Count == 0 || currEntries.Count == 0)
+        {
+            return diff;
+        }
+
+        // If entry count is identical (typical for TypeTree or aligned binary replacement), compare index-by-index
+        if (origEntries.Count == currEntries.Count)
+        {
+            for (int i = 0; i < origEntries.Count; i++)
+            {
+                TextEntry orig = origEntries[i];
+                TextEntry curr = currEntries[i];
+                if (!string.Equals(orig.OriginalText, curr.OriginalText, StringComparison.Ordinal) &&
+                    !string.IsNullOrWhiteSpace(curr.OriginalText))
+                {
+                    diff.Add(orig with { TranslatedText = curr.OriginalText });
+                }
+            }
+
+            return diff;
+        }
+
+        // Otherwise match by Key or Id
+        var currByKey = new Dictionary<string, TextEntry>(StringComparer.OrdinalIgnoreCase);
+        var currById = new Dictionary<string, TextEntry>(StringComparer.OrdinalIgnoreCase);
+        foreach (TextEntry c in currEntries)
+        {
+            if (!string.IsNullOrWhiteSpace(c.Key)) currByKey[c.Key] = c;
+            if (!string.IsNullOrWhiteSpace(c.Id)) currById[c.Id] = c;
+        }
+
+        foreach (TextEntry orig in origEntries)
+        {
+            TextEntry? matched = null;
+            if (!string.IsNullOrWhiteSpace(orig.Key) && currByKey.TryGetValue(orig.Key, out TextEntry? byKey))
+            {
+                matched = byKey;
+            }
+            else if (!string.IsNullOrWhiteSpace(orig.Id) && currById.TryGetValue(orig.Id, out TextEntry? byId))
+            {
+                matched = byId;
+            }
+
+            if (matched is not null &&
+                !string.Equals(orig.OriginalText, matched.OriginalText, StringComparison.Ordinal) &&
+                !string.IsNullOrWhiteSpace(matched.OriginalText))
+            {
+                diff.Add(orig with { TranslatedText = matched.OriginalText });
+            }
+        }
+
+        return diff;
+    }
+
+    private List<PatchPayload> GetEffectivePayloadsForOverview()
+    {
+        var map = new Dictionary<string, PatchPayload>(StringComparer.OrdinalIgnoreCase);
+
+        // 1. Start with persisted payloads already applied on disk in the game folder
+        foreach (PatchPayload persisted in _persistedDiskPayloads)
+        {
+            string key = GetPayloadMatchKey(persisted);
+            map[key] = persisted;
+            _appliedTargetKeysOnDisk.Add(key);
+        }
+
+        // 2. Overlay any packages staged in Screen 1 (merging translated entries if target already had persisted translations)
+        foreach (PatchPayload staged in GetConsolidatedStagedPayloads())
+        {
+            string key = GetPayloadMatchKey(staged);
+            if (map.TryGetValue(key, out PatchPayload? existingPersisted) &&
+                !staged.IsRawOverride &&
+                existingPersisted.Package.Entries.Count > 0)
+            {
+                var mergedByIdOrKey = new Dictionary<string, TextEntry>(StringComparer.OrdinalIgnoreCase);
+                foreach (TextEntry e in existingPersisted.Package.Entries)
+                {
+                    string ek = !string.IsNullOrWhiteSpace(e.Id) ? $"id:{e.Id}" : $"key:{e.Key}";
+                    mergedByIdOrKey[ek] = e;
+                }
+
+                foreach (TextEntry e in staged.Package.Entries)
+                {
+                    string ek = !string.IsNullOrWhiteSpace(e.Id) ? $"id:{e.Id}" : $"key:{e.Key}";
+                    if (!string.IsNullOrWhiteSpace(e.TranslatedText) || !mergedByIdOrKey.ContainsKey(ek))
+                    {
+                        mergedByIdOrKey[ek] = e;
+                    }
+                }
+
+                map[key] = new PatchPayload
+                {
+                    SourceFilePath = staged.SourceFilePath,
+                    Package = new TranslationPackage
+                    {
+                        SchemaVersion = staged.Package.SchemaVersion,
+                        Engine = staged.Package.Engine,
+                        EngineVersion = staged.Package.EngineVersion,
+                        ScriptingBackend = staged.Package.ScriptingBackend,
+                        TargetId = staged.Package.TargetId,
+                        DisplayName = staged.Package.DisplayName,
+                        SourceKind = staged.Package.SourceKind,
+                        ContainerRelativePath = staged.Package.ContainerRelativePath,
+                        BundleMemberName = staged.Package.BundleMemberName,
+                        OriginalContainerSha256 = staged.Package.OriginalContainerSha256,
+                        InnerFormat = staged.Package.InnerFormat,
+                        Entries = mergedByIdOrKey.Values.ToList()
+                    }
+                };
+            }
+            else
+            {
+                map[key] = staged;
+            }
+        }
+
+        return map.Values.ToList();
+    }
+
     private void RebuildPatchStatusOverview()
     {
         PatchTargetStatusItemViewModel? previousSelected = SelectedPatchTarget;
-        List<PatchPayload> stagedPayloads = GetConsolidatedStagedPayloads();
+        List<PatchPayload> effectivePayloads = GetEffectivePayloadsForOverview();
 
         var payloadByKey = new Dictionary<string, PatchPayload>(StringComparer.OrdinalIgnoreCase);
-        foreach (PatchPayload p in stagedPayloads)
+        foreach (PatchPayload p in effectivePayloads)
         {
             payloadByKey[GetPayloadMatchKey(p)] = p;
         }
@@ -1229,10 +1501,21 @@ public sealed partial class MainWindowViewModel : ObservableObject, IDisposable
 
             if (targetItem.ScannedTarget is not null && _activeAdapter is not null && _activeProfile is not null)
             {
-                ExtractedTargetContent content = await _coordinator.GetOrExtractTargetAsync(
-                    _activeAdapter,
-                    _activeProfile,
-                    targetItem.ScannedTarget);
+                // If an untouched backup exists in .translator_backup/, read the base original entries from there
+                // so that OriginalText and binary offsets are 100% unshifted!
+                string backupContainerPath = Path.Combine(
+                    _backupVault.GetVaultRootDirectory(_activeProfile),
+                    BackupVaultService.NormalizeRelativePath(targetItem.ScannedTarget.ContainerRelativePath)
+                        .Replace('/', Path.DirectorySeparatorChar));
+
+                ExtractedTargetContent content = File.Exists(backupContainerPath)
+                    ? await _activeAdapter.ExtractTargetAsync(
+                        _activeProfile,
+                        CloneTargetInBackupVault(targetItem.ScannedTarget))
+                    : await _coordinator.GetOrExtractTargetAsync(
+                        _activeAdapter,
+                        _activeProfile,
+                        targetItem.ScannedTarget);
 
                 if (SelectedPatchTarget != targetItem)
                 {

@@ -11,6 +11,7 @@ public sealed class BackupVaultService : IBackupVaultService
 {
     public const string VaultFolderName = ".translator_backup";
     public const string VaultManifestFileName = "vault_manifest.json";
+    public const string PatchedStateFileName = "patched_state.json";
 
     private static readonly JsonSerializerOptions JsonOptions = new()
     {
@@ -252,6 +253,12 @@ public sealed class BackupVaultService : IBackupVaultService
                 }
             }
 
+            if (restoredPaths.Count > 0)
+            {
+                string patchedStatePath = Path.Combine(vaultRoot, PatchedStateFileName);
+                TryDeleteFile(patchedStatePath);
+            }
+
             return new RestoreSummary(
                 RestoredFileCount: restoredPaths.Count,
                 TotalBytesRestored: totalBytesRestored,
@@ -262,6 +269,203 @@ public sealed class BackupVaultService : IBackupVaultService
         {
             _manifestLock.Release();
         }
+    }
+
+    public async Task RecordAppliedPayloadsAsync(
+        GameProfile profile,
+        IReadOnlyList<PatchPayload> appliedPayloads,
+        CancellationToken cancellationToken = default)
+    {
+        if (appliedPayloads.Count == 0)
+        {
+            return;
+        }
+
+        await _manifestLock.WaitAsync(cancellationToken).ConfigureAwait(false);
+        try
+        {
+            string vaultRoot = GetVaultRootDirectory(profile);
+            Directory.CreateDirectory(vaultRoot);
+
+            AppliedPatchStateManifest state = await LoadPatchedStateInternalAsync(profile, cancellationToken).ConfigureAwait(false)
+                ?? new AppliedPatchStateManifest();
+
+            foreach (PatchPayload payload in appliedPayloads)
+            {
+                List<TextEntry> translatedEntries = payload.Package.Entries
+                    .Where(e => !string.IsNullOrWhiteSpace(e.TranslatedText))
+                    .ToList();
+
+                if (translatedEntries.Count == 0 && !payload.IsRawOverride)
+                {
+                    continue;
+                }
+
+                AppliedPackageRecord? existing = state.Packages.FirstOrDefault(p =>
+                    (!string.IsNullOrWhiteSpace(p.Package.TargetId) &&
+                     string.Equals(p.Package.TargetId, payload.Package.TargetId, StringComparison.OrdinalIgnoreCase)) ||
+                    (string.Equals(NormalizeRelativePath(p.Package.ContainerRelativePath), NormalizeRelativePath(payload.Package.ContainerRelativePath), StringComparison.OrdinalIgnoreCase) &&
+                     string.Equals(p.Package.DisplayName, payload.Package.DisplayName, StringComparison.OrdinalIgnoreCase)));
+
+                if (existing is not null)
+                {
+                    var mergedByIdOrKey = new Dictionary<string, TextEntry>(StringComparer.OrdinalIgnoreCase);
+                    foreach (TextEntry oldEntry in existing.Package.Entries)
+                    {
+                        string k = !string.IsNullOrWhiteSpace(oldEntry.Id) ? $"id:{oldEntry.Id}" : $"key:{oldEntry.Key}";
+                        mergedByIdOrKey[k] = oldEntry;
+                    }
+
+                    foreach (TextEntry newEntry in translatedEntries)
+                    {
+                        string k = !string.IsNullOrWhiteSpace(newEntry.Id) ? $"id:{newEntry.Id}" : $"key:{newEntry.Key}";
+                        mergedByIdOrKey[k] = newEntry;
+                    }
+
+                    existing.SourceFilePath = payload.SourceFilePath;
+                    existing.IsRawOverride = payload.IsRawOverride;
+                    existing.PatchedAtUtc = DateTimeOffset.UtcNow;
+                    existing.Package = new TranslationPackage
+                    {
+                        SchemaVersion = payload.Package.SchemaVersion,
+                        Engine = payload.Package.Engine,
+                        EngineVersion = payload.Package.EngineVersion,
+                        ScriptingBackend = payload.Package.ScriptingBackend,
+                        TargetId = payload.Package.TargetId,
+                        DisplayName = payload.Package.DisplayName,
+                        SourceKind = payload.Package.SourceKind,
+                        ContainerRelativePath = payload.Package.ContainerRelativePath,
+                        BundleMemberName = payload.Package.BundleMemberName,
+                        OriginalContainerSha256 = payload.Package.OriginalContainerSha256,
+                        InnerFormat = payload.Package.InnerFormat,
+                        Entries = mergedByIdOrKey.Values.ToList()
+                    };
+                }
+                else
+                {
+                    state.Packages.Add(new AppliedPackageRecord
+                    {
+                        SourceFilePath = payload.SourceFilePath,
+                        IsRawOverride = payload.IsRawOverride,
+                        PatchedAtUtc = DateTimeOffset.UtcNow,
+                        Package = new TranslationPackage
+                        {
+                            SchemaVersion = payload.Package.SchemaVersion,
+                            Engine = payload.Package.Engine,
+                            EngineVersion = payload.Package.EngineVersion,
+                            ScriptingBackend = payload.Package.ScriptingBackend,
+                            TargetId = payload.Package.TargetId,
+                            DisplayName = payload.Package.DisplayName,
+                            SourceKind = payload.Package.SourceKind,
+                            ContainerRelativePath = payload.Package.ContainerRelativePath,
+                            BundleMemberName = payload.Package.BundleMemberName,
+                            OriginalContainerSha256 = payload.Package.OriginalContainerSha256,
+                            InnerFormat = payload.Package.InnerFormat,
+                            Entries = translatedEntries
+                        }
+                    });
+                }
+            }
+
+            state.UpdatedAtUtc = DateTimeOffset.UtcNow;
+            await SavePatchedStateInternalAsync(profile, state, cancellationToken).ConfigureAwait(false);
+        }
+        finally
+        {
+            _manifestLock.Release();
+        }
+    }
+
+    public async Task<IReadOnlyList<PatchPayload>> GetAppliedPayloadsAsync(
+        GameProfile profile,
+        CancellationToken cancellationToken = default)
+    {
+        await _manifestLock.WaitAsync(cancellationToken).ConfigureAwait(false);
+        try
+        {
+            AppliedPatchStateManifest? state = await LoadPatchedStateInternalAsync(profile, cancellationToken).ConfigureAwait(false);
+            if (state is null || state.Packages.Count == 0)
+            {
+                return [];
+            }
+
+            BackupVaultManifest? vaultManifest = await LoadManifestInternalAsync(profile, cancellationToken).ConfigureAwait(false);
+            var originalHashByContainer = new Dictionary<string, string>(StringComparer.OrdinalIgnoreCase);
+            if (vaultManifest is not null)
+            {
+                foreach (BackupVaultEntry entry in vaultManifest.Entries)
+                {
+                    originalHashByContainer[NormalizeRelativePath(entry.ContainerRelativePath)] = entry.OriginalSha256;
+                }
+            }
+
+            var activePayloads = new List<PatchPayload>(state.Packages.Count);
+            foreach (AppliedPackageRecord record in state.Packages)
+            {
+                string normContainer = NormalizeRelativePath(record.Package.ContainerRelativePath);
+                string gameFileFullPath = Path.Combine(profile.RootPath, normContainer.Replace('/', Path.DirectorySeparatorChar));
+
+                // If the game file on disk is identical to the original backup SHA-256, it is not currently patched
+                if (originalHashByContainer.TryGetValue(normContainer, out string? origSha) &&
+                    File.Exists(gameFileFullPath))
+                {
+                    string currentDiskSha = HashUtility.ComputeFileSha256(gameFileFullPath);
+                    if (string.Equals(currentDiskSha, origSha, StringComparison.OrdinalIgnoreCase))
+                    {
+                        continue;
+                    }
+                }
+
+                activePayloads.Add(new PatchPayload
+                {
+                    SourceFilePath = record.SourceFilePath,
+                    Package = record.Package,
+                    RawBytesOverride = record.IsRawOverride ? [1] : null
+                });
+            }
+
+            return activePayloads;
+        }
+        finally
+        {
+            _manifestLock.Release();
+        }
+    }
+
+    private async Task<AppliedPatchStateManifest?> LoadPatchedStateInternalAsync(
+        GameProfile profile,
+        CancellationToken cancellationToken)
+    {
+        string path = Path.Combine(GetVaultRootDirectory(profile), PatchedStateFileName);
+        if (!File.Exists(path))
+        {
+            return null;
+        }
+
+        try
+        {
+            string json = await File.ReadAllTextAsync(path, Encoding.UTF8, cancellationToken).ConfigureAwait(false);
+            return JsonSerializer.Deserialize<AppliedPatchStateManifest>(json, JsonOptions);
+        }
+        catch
+        {
+            return null;
+        }
+    }
+
+    private async Task SavePatchedStateInternalAsync(
+        GameProfile profile,
+        AppliedPatchStateManifest state,
+        CancellationToken cancellationToken)
+    {
+        string vaultRoot = GetVaultRootDirectory(profile);
+        Directory.CreateDirectory(vaultRoot);
+        string path = Path.Combine(vaultRoot, PatchedStateFileName);
+        string tempPath = $"{path}.tmp";
+
+        string json = JsonSerializer.Serialize(state, JsonOptions);
+        await File.WriteAllTextAsync(tempPath, json, new UTF8Encoding(false), cancellationToken).ConfigureAwait(false);
+        File.Move(tempPath, path, overwrite: true);
     }
 
     private async Task<BackupVaultManifest?> LoadManifestInternalAsync(

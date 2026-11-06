@@ -57,3 +57,18 @@ public sealed record PatchSummary(
     IReadOnlyList<string> PatchedContainers,
     IReadOnlyList<string> Warnings,
     IReadOnlyList<string> Errors);
+
+public sealed class AppliedPatchStateManifest
+{
+    public string SchemaVersion { get; init; } = "1.0";
+    public DateTimeOffset UpdatedAtUtc { get; set; } = DateTimeOffset.UtcNow;
+    public List<AppliedPackageRecord> Packages { get; init; } = [];
+}
+
+public sealed class AppliedPackageRecord
+{
+    public required string SourceFilePath { get; set; }
+    public required TranslationPackage Package { get; set; }
+    public bool IsRawOverride { get; set; }
+    public DateTimeOffset PatchedAtUtc { get; set; } = DateTimeOffset.UtcNow;
+}
