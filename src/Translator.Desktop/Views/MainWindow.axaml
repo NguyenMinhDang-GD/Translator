@@ -831,7 +831,7 @@
                                        Foreground="{StaticResource Brush.Text.Secondary}"
                                        VerticalAlignment="Center" />
                             <CheckBox Content="Gói .translator.json" IsChecked="{Binding ExportTranslatorJson}" FontSize="12" />
-                            <CheckBox Content="Bảng .csv + .manifest.json + Master.csv" IsChecked="{Binding ExportCsv}" FontSize="12" />
+                            <CheckBox Content="Bảng .csv + .manifest.json" IsChecked="{Binding ExportCsv}" FontSize="12" />
                             <CheckBox Content="Kèm bản sao File gốc (Raw)" IsChecked="{Binding IncludeRawFile}" FontSize="12" />
                         </StackPanel>
 

@@ -57,7 +57,8 @@ public sealed class TranslationPackageLoader : IPatchPackageLoader
             cancellationToken.ThrowIfCancellationRequested();
             string fileName = Path.GetFileName(file);
             if (fileName.Equals("manifest.project.json", StringComparison.OrdinalIgnoreCase) ||
-                fileName.Equals("vault_manifest.json", StringComparison.OrdinalIgnoreCase))
+                fileName.Equals("vault_manifest.json", StringComparison.OrdinalIgnoreCase) ||
+                fileName.Equals("patched_state.json", StringComparison.OrdinalIgnoreCase))
             {
                 continue;
             }
@@ -399,8 +400,13 @@ public sealed class TranslationPackageLoader : IPatchPackageLoader
         return package;
     }
 
-    private static bool IsExcelFormulaError(string value)
+    public static bool IsExcelFormulaError(string? value)
     {
+        if (string.IsNullOrWhiteSpace(value))
+        {
+            return false;
+        }
+
         ReadOnlySpan<char> trimmed = value.AsSpan().Trim();
         return trimmed.Equals("#NAME?", StringComparison.OrdinalIgnoreCase) ||
                trimmed.Equals("#VALUE!", StringComparison.OrdinalIgnoreCase) ||
@@ -491,7 +497,9 @@ public sealed class TranslationPackageLoader : IPatchPackageLoader
             {
                 TextEntry entry = pkg.Entries[i];
                 if ((!string.IsNullOrEmpty(idVal) && entry.Id.Equals(idVal, StringComparison.OrdinalIgnoreCase)) ||
-                    (!string.IsNullOrEmpty(keyVal) && (entry.Key.Equals(keyVal, StringComparison.Ordinal) || entry.Location.FieldOrInnerKey.Equals(keyVal, StringComparison.Ordinal))))
+                    (!string.IsNullOrEmpty(keyVal) &&
+                     (entry.Key.Equals(keyVal, StringComparison.Ordinal) ||
+                      (!entry.Location.PathId.HasValue && entry.Location.FieldOrInnerKey.Equals(keyVal, StringComparison.Ordinal)))))
                 {
                     pkg.Entries[i] = entry with { TranslatedText = translated };
                     touchedTargets.Add(targetId);

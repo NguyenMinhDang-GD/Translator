@@ -4,6 +4,7 @@ using System.Text.Json;
 using Translator.Core.Abstractions;
 using Translator.Core.Exporting;
 using Translator.Core.Models;
+using Translator.Core.Patching;
 
 namespace Translator.Core.Backup;
 
@@ -293,7 +294,8 @@ public sealed class BackupVaultService : IBackupVaultService
             foreach (PatchPayload payload in appliedPayloads)
             {
                 List<TextEntry> translatedEntries = payload.Package.Entries
-                    .Where(e => !string.IsNullOrWhiteSpace(e.TranslatedText))
+                    .Where(e => !string.IsNullOrWhiteSpace(e.TranslatedText) &&
+                                !TranslationPackageLoader.IsExcelFormulaError(e.TranslatedText))
                     .ToList();
 
                 if (translatedEntries.Count == 0 && !payload.IsRawOverride)
@@ -312,6 +314,11 @@ public sealed class BackupVaultService : IBackupVaultService
                     var mergedByIdOrKey = new Dictionary<string, TextEntry>(StringComparer.OrdinalIgnoreCase);
                     foreach (TextEntry oldEntry in existing.Package.Entries)
                     {
+                        if (TranslationPackageLoader.IsExcelFormulaError(oldEntry.TranslatedText))
+                        {
+                            continue;
+                        }
+
                         string k = !string.IsNullOrWhiteSpace(oldEntry.Id) ? $"id:{oldEntry.Id}" : $"key:{oldEntry.Key}";
                         mergedByIdOrKey[k] = oldEntry;
                     }
@@ -416,10 +423,34 @@ public sealed class BackupVaultService : IBackupVaultService
                     }
                 }
 
+                List<TextEntry> cleanEntries = record.Package.Entries
+                    .Where(e => !string.IsNullOrWhiteSpace(e.TranslatedText) &&
+                                !TranslationPackageLoader.IsExcelFormulaError(e.TranslatedText))
+                    .ToList();
+
+                if (cleanEntries.Count == 0 && !record.IsRawOverride)
+                {
+                    continue;
+                }
+
                 activePayloads.Add(new PatchPayload
                 {
                     SourceFilePath = record.SourceFilePath,
-                    Package = record.Package,
+                    Package = new TranslationPackage
+                    {
+                        SchemaVersion = record.Package.SchemaVersion,
+                        Engine = record.Package.Engine,
+                        EngineVersion = record.Package.EngineVersion,
+                        ScriptingBackend = record.Package.ScriptingBackend,
+                        TargetId = record.Package.TargetId,
+                        DisplayName = record.Package.DisplayName,
+                        SourceKind = record.Package.SourceKind,
+                        ContainerRelativePath = record.Package.ContainerRelativePath,
+                        BundleMemberName = record.Package.BundleMemberName,
+                        OriginalContainerSha256 = record.Package.OriginalContainerSha256,
+                        InnerFormat = record.Package.InnerFormat,
+                        Entries = cleanEntries
+                    },
                     RawBytesOverride = record.IsRawOverride ? [1] : null
                 });
             }

@@ -297,7 +297,7 @@ public sealed class UnityPatcher : IGameEnginePatcher
         return appliedCount;
     }
 
-    private static byte[] EncodeMatchingBom(string text, ReadOnlySpan<byte> originalBytes)
+    internal static byte[] EncodeMatchingBom(string text, ReadOnlySpan<byte> originalBytes)
     {
         if (originalBytes.Length >= 3 &&
             originalBytes[0] == 0xEF &&

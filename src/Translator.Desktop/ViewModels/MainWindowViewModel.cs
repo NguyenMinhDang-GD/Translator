@@ -200,9 +200,6 @@ public sealed partial class MainWindowViewModel : ObservableObject, IDisposable
     private string _encryptedBadgeText = "0 cảnh báo mã hóa";
 
     [ObservableProperty]
-    private bool _hasEncryptedWarnings;
-
-    [ObservableProperty]
     private string? _lastExportDirectory;
 
     [ObservableProperty]
@@ -369,7 +366,6 @@ public sealed partial class MainWindowViewModel : ObservableObject, IDisposable
         _persistedDiskPayloads.Clear();
         _appliedTargetKeysOnDisk.Clear();
         PreviewRawText = string.Empty;
-        HasEncryptedWarnings = false;
         EncryptedBadgeText = "0 cảnh báo mã hóa";
         UpdateOverviewMetrics();
         UpdateSelectionSummary();
@@ -408,7 +404,6 @@ public sealed partial class MainWindowViewModel : ObservableObject, IDisposable
                 EncryptedWarnings.Add(warning);
             }
 
-            HasEncryptedWarnings = EncryptedWarnings.Count > 0;
             EncryptedBadgeText = $"{EncryptedWarnings.Count} cảnh báo mã hóa";
 
             SourceLanguageFilter currentLang = ActiveLanguageFilter;
@@ -421,7 +416,7 @@ public sealed partial class MainWindowViewModel : ObservableObject, IDisposable
 
             UpdateOverviewMetrics();
             ApplyFilters();
-            await LoadOrRecoverPersistedPatchStateAsync(token);
+            await LoadOrRecoverPersistedPatchStateAsync(allowBackupDiffRecovery: false, cancellationToken: token);
             RebuildPatchStatusOverview();
 
             if (FilteredTargets.Count > 0)
@@ -461,7 +456,7 @@ public sealed partial class MainWindowViewModel : ObservableObject, IDisposable
 
             UpdateOverviewMetrics();
             ApplyFilters(preserveSelection: true);
-            await LoadOrRecoverPersistedPatchStateAsync(token);
+            await LoadOrRecoverPersistedPatchStateAsync(allowBackupDiffRecovery: true, cancellationToken: token);
             RebuildPatchStatusOverview();
             ProgressPercent = 100;
             string patchBadgeNote = PatchedTargetsCount > 0
@@ -548,12 +543,6 @@ public sealed partial class MainWindowViewModel : ObservableObject, IDisposable
         }
 
         UpdateSelectionSummary();
-    }
-
-    [RelayCommand]
-    private void ShowEncryptedTab()
-    {
-        CurrentPageIndex = 0;
     }
 
     [RelayCommand]
@@ -1047,7 +1036,9 @@ public sealed partial class MainWindowViewModel : ObservableObject, IDisposable
     // =========================================================================
     // PAGE 3 SCREEN 2: 2-LEVEL PATCHED VS UNPATCHED TRACKER
     // =========================================================================
-    private async Task LoadOrRecoverPersistedPatchStateAsync(CancellationToken cancellationToken = default)
+    private async Task LoadOrRecoverPersistedPatchStateAsync(
+        bool allowBackupDiffRecovery = true,
+        CancellationToken cancellationToken = default)
     {
         _persistedDiskPayloads.Clear();
         if (_activeProfile is null)
@@ -1070,7 +1061,7 @@ public sealed partial class MainWindowViewModel : ObservableObject, IDisposable
 
             // If .translator_backup has modified containers on disk that were patched before patched_state.json existed,
             // automatically diff the backup container against the current game container and persist them!
-            if (_activeAdapter is not null && _allTargets.Count > 0)
+            if (allowBackupDiffRecovery && _activeAdapter is not null && _allTargets.Count > 0)
             {
                 VaultStatus vaultStatus = await _backupVault.GetVaultStatusAsync(_activeProfile, cancellationToken);
                 var recoveredPayloads = new List<PatchPayload>();
@@ -1204,7 +1195,8 @@ public sealed partial class MainWindowViewModel : ObservableObject, IDisposable
                 TextEntry orig = origEntries[i];
                 TextEntry curr = currEntries[i];
                 if (!string.Equals(orig.OriginalText, curr.OriginalText, StringComparison.Ordinal) &&
-                    !string.IsNullOrWhiteSpace(curr.OriginalText))
+                    !string.IsNullOrWhiteSpace(curr.OriginalText) &&
+                    !TranslationPackageLoader.IsExcelFormulaError(curr.OriginalText))
                 {
                     diff.Add(orig with { TranslatedText = curr.OriginalText });
                 }
@@ -1236,7 +1228,8 @@ public sealed partial class MainWindowViewModel : ObservableObject, IDisposable
 
             if (matched is not null &&
                 !string.Equals(orig.OriginalText, matched.OriginalText, StringComparison.Ordinal) &&
-                !string.IsNullOrWhiteSpace(matched.OriginalText))
+                !string.IsNullOrWhiteSpace(matched.OriginalText) &&
+                !TranslationPackageLoader.IsExcelFormulaError(matched.OriginalText))
             {
                 diff.Add(orig with { TranslatedText = matched.OriginalText });
             }
@@ -1688,19 +1681,12 @@ public sealed partial class MainWindowViewModel : ObservableObject, IDisposable
     {
         if (payload.Package.Entries.Count > 0)
         {
-            int count = payload.Package.Entries.Count(e =>
+            return payload.Package.Entries.Count(e =>
                 !string.IsNullOrWhiteSpace(e.TranslatedText) &&
-                !string.Equals(e.TranslatedText, e.OriginalText, StringComparison.Ordinal));
-
-            return count > 0 ? count : payload.Package.Entries.Count(e => !string.IsNullOrWhiteSpace(e.TranslatedText));
+                !TranslationPackageLoader.IsExcelFormulaError(e.TranslatedText));
         }
 
-        if (payload.IsRawOverride)
-        {
-            return Math.Max(1, fallbackTotal);
-        }
-
-        return 0;
+        return payload.IsRawOverride ? Math.Max(1, fallbackTotal) : 0;
     }
 
     private static string GetTargetMatchKey(ScannedTarget target)

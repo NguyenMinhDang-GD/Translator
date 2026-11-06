@@ -267,7 +267,7 @@ public static class UnityAssetContainerPatcher
             }
             else if (payload.RawTextOverride is not null)
             {
-                newScriptBytes = EncodeTextMatchingOriginalBom(payload.RawTextOverride, oldScriptBytes);
+                newScriptBytes = UnityPatcher.EncodeMatchingBom(payload.RawTextOverride, oldScriptBytes);
                 appliedEntries = Math.Max(1, payload.Package.Entries.Count);
             }
             else
@@ -314,7 +314,7 @@ public static class UnityAssetContainerPatcher
                 return 0;
             }
 
-            newScriptBytes = EncodeTextMatchingOriginalBom(reconstructedText, oldScriptBytes);
+            newScriptBytes = UnityPatcher.EncodeMatchingBom(reconstructedText, oldScriptBytes);
         }
 
         byte[] newObjectBytes = AlignedBinaryStringScanner.BuildBinaryTextAsset(
@@ -507,45 +507,6 @@ public static class UnityAssetContainerPatcher
         }
 
         return modified;
-    }
-
-    private static byte[] EncodeTextMatchingOriginalBom(string text, ReadOnlySpan<byte> originalBytes)
-    {
-        if (originalBytes.Length >= 3 &&
-            originalBytes[0] == 0xEF &&
-            originalBytes[1] == 0xBB &&
-            originalBytes[2] == 0xBF)
-        {
-            byte[] utf8 = Encoding.UTF8.GetBytes(text);
-            byte[] withBom = new byte[utf8.Length + 3];
-            withBom[0] = 0xEF;
-            withBom[1] = 0xBB;
-            withBom[2] = 0xBF;
-            utf8.CopyTo(withBom.AsSpan(3));
-            return withBom;
-        }
-
-        if (originalBytes.Length >= 2 && originalBytes[0] == 0xFF && originalBytes[1] == 0xFE)
-        {
-            byte[] utf16Le = Encoding.Unicode.GetBytes(text);
-            byte[] withBom = new byte[utf16Le.Length + 2];
-            withBom[0] = 0xFF;
-            withBom[1] = 0xFE;
-            utf16Le.CopyTo(withBom.AsSpan(2));
-            return withBom;
-        }
-
-        if (originalBytes.Length >= 2 && originalBytes[0] == 0xFE && originalBytes[1] == 0xFF)
-        {
-            byte[] utf16Be = Encoding.BigEndianUnicode.GetBytes(text);
-            byte[] withBom = new byte[utf16Be.Length + 2];
-            withBom[0] = 0xFE;
-            withBom[1] = 0xFF;
-            utf16Be.CopyTo(withBom.AsSpan(2));
-            return withBom;
-        }
-
-        return Encoding.UTF8.GetBytes(text);
     }
 
     private static long? TryExtractTrailingPathIdFromTargetId(string? targetId)
