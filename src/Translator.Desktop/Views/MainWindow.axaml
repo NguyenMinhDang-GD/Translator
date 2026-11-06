@@ -4,399 +4,1447 @@
         xmlns:models="using:Translator.Core.Models"
         x:Class="Translator.Desktop.Views.MainWindow"
         x:DataType="vm:MainWindowViewModel"
-        Title="Game Translator — Unity Text Scanner &amp; Extractor"
-        Width="1380"
-        Height="860"
-        MinWidth="1060"
-        MinHeight="640"
-        Background="#0F172A"
-        WindowStartupLocation="CenterScreen">
+        Width="1520"
+        Height="920"
+        MinWidth="1120"
+        MinHeight="700"
+        WindowStartupLocation="CenterScreen"
+        Title="Translator Studio — Multi-Engine Game Localization (Unity Mono / IL2CPP)">
 
-    <Grid RowDefinitions="Auto,Auto,*,Auto" Margin="14">
+    <!-- ===================================================================== -->
+    <!-- MAIN SPLIT: 20% LEFT NAVIGATION SIDEBAR | 80% RIGHT WORKSPACE CONTENT -->
+    <!-- ===================================================================== -->
+    <Grid ColumnDefinitions="2*,8*">
 
-        <!-- 1. TOP BAR: Game Folder Selection & Detected Profile Banner -->
-        <Border Grid.Row="0"
-                Background="#1E293B"
-                BorderBrush="#334155"
-                BorderThickness="1"
-                CornerRadius="8"
-                Padding="14,10"
-                Margin="0,0,0,10">
-            <Grid RowDefinitions="Auto,Auto" RowSpacing="8">
-                <Grid Grid.Row="0" ColumnDefinitions="Auto,*,Auto,Auto,Auto" ColumnSpacing="10">
-                    <Border Background="#2563EB" CornerRadius="6" Padding="10,6" VerticalAlignment="Center">
-                        <TextBlock Text="UNITY EXTRACTOR" FontWeight="Bold" FontSize="12" Foreground="White" />
-                    </Border>
+        <!-- ================================================================= -->
+        <!-- COLUMN 0 (~20%): LEFT NAVIGATION SIDEBAR                          -->
+        <!-- ================================================================= -->
+        <Border Grid.Column="0"
+                MinWidth="255"
+                MaxWidth="330"
+                Background="{StaticResource Brush.Surface.Sidebar}"
+                BorderBrush="{StaticResource Brush.Border.Subtle}"
+                BorderThickness="0,0,1,0"
+                Padding="14,16">
+            <Grid RowDefinitions="Auto,Auto,*,Auto" RowSpacing="16">
 
-                    <TextBox Grid.Column="1"
-                             Text="{Binding GameFolderPath}"
-                             PlaceholderText="Đường dẫn thư mục Game Unity (VD: D:\Games\Hollow Knight)..."
-                             VerticalContentAlignment="Center" />
+                <!-- 1. Brand Identity Header -->
+                <Border Grid.Row="0"
+                        Background="{StaticResource Brush.Surface.Card}"
+                        BorderBrush="{StaticResource Brush.Border.Subtle}"
+                        BorderThickness="1"
+                        CornerRadius="10"
+                        Padding="12,11">
+                    <StackPanel Orientation="Horizontal" Spacing="11">
+                        <Border Width="38"
+                                Height="38"
+                                CornerRadius="9"
+                                Background="{StaticResource Brush.Accent.Brand}"
+                                VerticalAlignment="Center">
+                            <PathIcon Data="{StaticResource Icon.Translate}"
+                                      Width="19"
+                                      Height="19"
+                                      Foreground="White" />
+                        </Border>
+                        <StackPanel VerticalAlignment="Center" Spacing="2">
+                            <TextBlock Text="Translator Studio"
+                                       FontSize="15"
+                                       FontWeight="Bold"
+                                       Foreground="{StaticResource Brush.Text.Primary}" />
+                            <TextBlock Text="Unity Mono &amp; IL2CPP Suite"
+                                       FontSize="11.5"
+                                       Foreground="{StaticResource Brush.Text.Muted}" />
+                        </StackPanel>
+                    </StackPanel>
+                </Border>
 
-                    <Button Grid.Column="2"
-                            Click="OnPickGameFolderClick"
-                            Background="#3B82F6"
-                            Foreground="White"
-                            FontWeight="SemiBold"
-                            Padding="14,7"
-                            Content="Chọn thư mục Game..." />
-
-                    <Button Grid.Column="3"
-                            Command="{Binding RescanCommand}"
-                            Padding="12,7"
-                            Content="Quét lại" />
-
-                    <Button Grid.Column="4"
-                            Command="{Binding CancelActiveOperationCommand}"
-                            IsEnabled="{Binding IsBusy}"
-                            Padding="12,7"
-                            Content="Dừng" />
-                </Grid>
-
-                <Grid Grid.Row="1" ColumnDefinitions="*,Auto">
-                    <TextBlock Text="{Binding GameBannerText}"
-                               Foreground="#93C5FD"
-                               FontSize="13"
-                               FontWeight="Medium"
-                               VerticalAlignment="Center" />
-
-                    <Button Grid.Column="1"
-                            IsVisible="{Binding HasEncryptedWarnings}"
-                            Command="{Binding ShowEncryptedTabCommand}"
-                            Background="#7F1D1D"
-                            Foreground="#FECACA"
-                            Padding="10,4"
-                            FontSize="12"
-                            Content="{Binding EncryptedBadgeText}" />
-                </Grid>
-            </Grid>
-        </Border>
-
-        <!-- 2. FILTER, LANGUAGE SELECTOR & FULL-TEXT SEARCH BAR -->
-        <Border Grid.Row="1"
-                Background="#1E293B"
-                BorderBrush="#334155"
-                BorderThickness="1"
-                CornerRadius="8"
-                Padding="14,10"
-                Margin="0,0,0,10">
-            <Grid RowDefinitions="Auto,Auto" RowSpacing="8">
-                <Grid Grid.Row="0" ColumnDefinitions="*,Auto,Auto,Auto,210" ColumnSpacing="10">
-                    <TextBox Grid.Column="0"
-                             Text="{Binding SearchQuery}"
-                             PlaceholderText="Tìm tên file hoặc gõ trực tiếp câu thoại nhìn thấy trong game (VD: New Game, Press Any Key)..." />
-
-                    <Button Grid.Column="1"
-                            Command="{Binding ClearSearchCommand}"
-                            Padding="10,6"
-                            Content="Xóa tìm kiếm" />
-
-                    <CheckBox Grid.Column="2"
-                              IsChecked="{Binding FilterPreviewBySearch}"
-                              Content="Lọc bảng Xem trước"
-                              VerticalAlignment="Center" />
-
-                    <TextBlock Grid.Column="3"
-                               Text="Ngôn ngữ Extract:"
-                               Foreground="#38BDF8"
+                <!-- 2. Navigation Menu Items (3 Pages) -->
+                <StackPanel Grid.Row="1" Spacing="8">
+                    <TextBlock Text="THANH ĐIỀU TRANG"
+                               FontSize="11"
                                FontWeight="Bold"
-                               VerticalAlignment="Center"
-                               Margin="6,0,0,0" />
+                               Foreground="{StaticResource Brush.Text.Muted}"
+                               Margin="6,2,0,2" />
 
-                    <ComboBox Grid.Column="4"
-                              ItemsSource="{Binding LanguageOptions}"
-                              SelectedItem="{Binding SelectedLanguageOption}"
-                              HorizontalAlignment="Stretch"
-                              VerticalAlignment="Center">
-                        <ComboBox.ItemTemplate>
-                            <DataTemplate x:DataType="vm:LanguageFilterOption">
-                                <TextBlock Text="{Binding DisplayLabel}" FontWeight="SemiBold" />
-                            </DataTemplate>
-                        </ComboBox.ItemTemplate>
-                    </ComboBox>
-                </Grid>
+                    <!-- NAV 1: Tìm Text (Quét Folder Game) -->
+                    <Button Classes="nav-item"
+                            Classes.active="{Binding IsScanPageActive}"
+                            Command="{Binding ShowScanPageCommand}">
+                        <Grid ColumnDefinitions="Auto,*,Auto" ColumnSpacing="11">
+                            <Border Grid.Column="0"
+                                    Width="34"
+                                    Height="34"
+                                    CornerRadius="7"
+                                    Background="#1D3557"
+                                    VerticalAlignment="Center">
+                                <PathIcon Data="{StaticResource Icon.RadarScan}"
+                                          Width="17"
+                                          Height="17"
+                                          Foreground="{StaticResource Brush.Text.Highlight}" />
+                            </Border>
+                            <StackPanel Grid.Column="1" VerticalAlignment="Center" Spacing="2">
+                                <TextBlock Text="1. Tìm Text Dịch"
+                                           FontSize="13"
+                                           FontWeight="Bold"
+                                           Foreground="{StaticResource Brush.Text.Primary}" />
+                                <TextBlock Text="Quét thư mục Game &amp; phân tích"
+                                           FontSize="11.5"
+                                           Foreground="{StaticResource Brush.Text.Muted}"
+                                           TextTrimming="CharacterEllipsis" />
+                            </StackPanel>
+                            <Border Grid.Column="2"
+                                    Background="{StaticResource Brush.Surface.Inset}"
+                                    BorderBrush="{StaticResource Brush.Border.Default}"
+                                    BorderThickness="1"
+                                    CornerRadius="5"
+                                    Padding="7,3"
+                                    VerticalAlignment="Center">
+                                <TextBlock Text="{Binding TotalScannedTargetsCount}"
+                                           FontSize="11"
+                                           FontWeight="Bold"
+                                           Foreground="{StaticResource Brush.Text.Highlight}" />
+                            </Border>
+                        </Grid>
+                    </Button>
 
-                <WrapPanel Grid.Row="1" Orientation="Horizontal">
-                    <TextBlock Text="Nguồn quét:"
-                               Foreground="#94A3B8"
-                               VerticalAlignment="Center"
-                               Margin="0,0,10,0" />
-                    <CheckBox IsChecked="{Binding IncludeLooseFiles}" Content="Loose Files (StreamingAssets)" Margin="0,0,16,0" />
-                    <CheckBox IsChecked="{Binding IncludeTextAssets}" Content="TextAsset (.assets / .bundle)" Margin="0,0,16,0" />
-                    <CheckBox IsChecked="{Binding IncludeMonoBehaviours}" Content="MonoBehaviour (ScriptableObject / I2)" Margin="0,0,16,0" />
-                    <CheckBox IsChecked="{Binding IncludeCodeStrings}" Content="Code &amp; Metadata (DLL / IL2CPP)" Margin="0,0,24,0" />
+                    <!-- NAV 2: Danh Sách & Xem Trước Text -->
+                    <Button Classes="nav-item"
+                            Classes.active="{Binding IsExplorerPageActive}"
+                            Command="{Binding ShowExplorerPageCommand}">
+                        <Grid ColumnDefinitions="Auto,*,Auto" ColumnSpacing="11">
+                            <Border Grid.Column="0"
+                                    Width="34"
+                                    Height="34"
+                                    CornerRadius="7"
+                                    Background="#0D3B2E"
+                                    VerticalAlignment="Center">
+                                <PathIcon Data="{StaticResource Icon.ListSearch}"
+                                          Width="17"
+                                          Height="17"
+                                          Foreground="#34D399" />
+                            </Border>
+                            <StackPanel Grid.Column="1" VerticalAlignment="Center" Spacing="2">
+                                <TextBlock Text="2. Danh Sách &amp; Xem Trước"
+                                           FontSize="13"
+                                           FontWeight="Bold"
+                                           Foreground="{StaticResource Brush.Text.Primary}" />
+                                <TextBlock Text="Lọc nguồn, xem câu chữ &amp; Extract"
+                                           FontSize="11.5"
+                                           Foreground="{StaticResource Brush.Text.Muted}"
+                                           TextTrimming="CharacterEllipsis" />
+                            </StackPanel>
+                            <Border Grid.Column="2"
+                                    Background="{StaticResource Brush.Surface.Inset}"
+                                    BorderBrush="{StaticResource Brush.Border.Default}"
+                                    BorderThickness="1"
+                                    CornerRadius="5"
+                                    Padding="7,3"
+                                    VerticalAlignment="Center">
+                                <TextBlock Text="{Binding FilteredTargets.Count}"
+                                           FontSize="11"
+                                           FontWeight="Bold"
+                                           Foreground="#34D399" />
+                            </Border>
+                        </Grid>
+                    </Button>
 
-                    <ToggleSwitch IsChecked="{Binding UseSmartFilter}"
-                                  OnContent="Đang BẬT Lọc thông minh (Ẩn rác hệ thống)"
-                                  OffContent="Đã TẮT Lọc thông minh (Hiện tất cả chuỗi hệ thống)" />
-                </WrapPanel>
-            </Grid>
-        </Border>
+                    <!-- NAV 3: Chọn File Để Vá (Vá Bản Việt Hóa) -->
+                    <Button Classes="nav-item"
+                            Classes.active="{Binding IsPatchPageActive}"
+                            Command="{Binding ShowPatchPageCommand}">
+                        <Grid ColumnDefinitions="Auto,*,Auto" ColumnSpacing="11">
+                            <Border Grid.Column="0"
+                                    Width="34"
+                                    Height="34"
+                                    CornerRadius="7"
+                                    Background="#2E1B4E"
+                                    VerticalAlignment="Center">
+                                <PathIcon Data="{StaticResource Icon.WrenchPatch}"
+                                          Width="17"
+                                          Height="17"
+                                          Foreground="#C4B5FD" />
+                            </Border>
+                            <StackPanel Grid.Column="1" VerticalAlignment="Center" Spacing="2">
+                                <TextBlock Text="3. Chọn File Để Vá"
+                                           FontSize="13"
+                                           FontWeight="Bold"
+                                           Foreground="{StaticResource Brush.Text.Primary}" />
+                                <TextBlock Text="Vá Việt hóa &amp; Đã vá / Chưa vá"
+                                           FontSize="11.5"
+                                           Foreground="{StaticResource Brush.Text.Muted}"
+                                           TextTrimming="CharacterEllipsis" />
+                            </StackPanel>
+                            <Border Grid.Column="2"
+                                    Background="{StaticResource Brush.Surface.Inset}"
+                                    BorderBrush="{StaticResource Brush.Border.Default}"
+                                    BorderThickness="1"
+                                    CornerRadius="5"
+                                    Padding="7,3"
+                                    VerticalAlignment="Center">
+                                <TextBlock Text="{Binding PatchedTargetsCount}"
+                                           FontSize="11"
+                                           FontWeight="Bold"
+                                           Foreground="#C4B5FD" />
+                            </Border>
+                        </Grid>
+                    </Button>
+                </StackPanel>
 
-        <!-- 3. TWO-COLUMN MAIN WORKSPACE -->
-        <Grid Grid.Row="2" ColumnDefinitions="460,8,*">
-
-            <!-- LEFT PANE: Discovered Targets List -->
-            <Border Grid.Column="0"
-                    Background="#1E293B"
-                    BorderBrush="#334155"
-                    BorderThickness="1"
-                    CornerRadius="8"
-                    Padding="10">
-                <Grid RowDefinitions="Auto,Auto,*" RowSpacing="8">
-                    <Grid Grid.Row="0" ColumnDefinitions="*,Auto,Auto" ColumnSpacing="6">
-                        <TextBlock Text="Danh Sách Nguồn Chứa Text"
+                <!-- 3. Spacer / Quick Workflow Guide -->
+                <Border Grid.Row="2"
+                        Background="{StaticResource Brush.Surface.Inset}"
+                        BorderBrush="{StaticResource Brush.Border.Subtle}"
+                        BorderThickness="1"
+                        CornerRadius="8"
+                        Padding="12,10"
+                        VerticalAlignment="Top">
+                    <StackPanel Spacing="6">
+                        <TextBlock Text="QUY TRÌNH 3 BƯỚC"
+                                   FontSize="10.5"
                                    FontWeight="Bold"
-                                   FontSize="14"
-                                   VerticalAlignment="Center" />
-                        <Button Grid.Column="1"
-                                Command="{Binding SelectAllVisibleCommand}"
-                                FontSize="12"
-                                Padding="8,4"
-                                Content="Tick tất cả đang lọc" />
-                        <Button Grid.Column="2"
-                                Command="{Binding ClearAllSelectionsCommand}"
-                                FontSize="12"
-                                Padding="8,4"
-                                Content="Bỏ chọn" />
-                    </Grid>
-
-                    <TextBlock Grid.Row="1"
-                               Text="{Binding SelectionSummary}"
-                               Foreground="#94A3B8"
-                               FontSize="12" />
-
-                    <ListBox Grid.Row="2"
-                             ItemsSource="{Binding FilteredTargets}"
-                             SelectedItem="{Binding SelectedTarget}"
-                             Background="#0F172A"
-                             CornerRadius="6">
-                        <ListBox.ItemTemplate>
-                            <DataTemplate x:DataType="vm:ScannedTargetItemViewModel">
-                                <Grid ColumnDefinitions="Auto,58,*,Auto" ColumnSpacing="8" Margin="2,3">
-                                    <CheckBox Grid.Column="0"
-                                              IsChecked="{Binding IsSelected}"
-                                              VerticalAlignment="Center" />
-
-                                    <Border Grid.Column="1"
-                                            Background="{Binding SourceBadgeBrush}"
-                                            CornerRadius="4"
-                                            Padding="5,2"
-                                            HorizontalAlignment="Stretch"
-                                            VerticalAlignment="Center">
-                                        <TextBlock Text="{Binding SourceBadgeText}"
-                                                   FontSize="10"
-                                                   FontWeight="Bold"
-                                                   Foreground="White"
-                                                   HorizontalAlignment="Center" />
-                                    </Border>
-
-                                    <StackPanel Grid.Column="2" Spacing="2">
-                                        <TextBlock Text="{Binding DisplayName}"
-                                                   FontWeight="SemiBold"
-                                                   FontSize="13"
-                                                   TextTrimming="CharacterEllipsis" />
-                                        <TextBlock Text="{Binding ContainerSubtitle}"
-                                                   Foreground="#94A3B8"
-                                                   FontSize="11"
-                                                   TextTrimming="CharacterEllipsis" />
-                                    </StackPanel>
-
-                                    <StackPanel Grid.Column="3" HorizontalAlignment="Right" Spacing="2">
-                                        <TextBlock Text="{Binding ScoreBadge}"
-                                                   Foreground="#38BDF8"
-                                                   FontSize="11"
-                                                   HorizontalAlignment="Right" />
-                                        <TextBlock Text="{Binding EntryCountBadge}"
-                                                   Foreground="#CBD5E1"
-                                                   FontSize="11"
-                                                   HorizontalAlignment="Right" />
-                                    </StackPanel>
-                                </Grid>
-                            </DataTemplate>
-                        </ListBox.ItemTemplate>
-                    </ListBox>
-                </Grid>
-            </Border>
-
-            <GridSplitter Grid.Column="1" Background="Transparent" ResizeDirection="Columns" />
-
-            <!-- RIGHT PANE: Live Preview & Encrypted Warnings -->
-            <Border Grid.Column="2"
-                    Background="#1E293B"
-                    BorderBrush="#334155"
-                    BorderThickness="1"
-                    CornerRadius="8"
-                    Padding="12">
-                <Grid RowDefinitions="Auto,*" RowSpacing="8">
-                    <StackPanel Grid.Row="0" Spacing="3">
-                        <TextBlock Text="{Binding PreviewHeaderTitle}"
-                                   FontWeight="Bold"
-                                   FontSize="15"
-                                   Foreground="#F8FAFC" />
-                        <TextBlock Text="{Binding PreviewHeaderMeta}"
-                                   FontSize="12"
-                                   Foreground="#94A3B8"
+                                   Foreground="{StaticResource Brush.Text.Accent}" />
+                        <TextBlock Text="• Bước 1: Chọn thư mục Game ở mục 1 để quét toàn bộ .assets, Bundle, MonoBehaviour &amp; Code."
+                                   FontSize="11.5"
+                                   Foreground="{StaticResource Brush.Text.Secondary}"
+                                   TextWrapping="Wrap" />
+                        <TextBlock Text="• Bước 2: Sang mục 2 để lọc ngôn ngữ, xem trước câu thoại và Extract ra file .csv / .json."
+                                   FontSize="11.5"
+                                   Foreground="{StaticResource Brush.Text.Secondary}"
+                                   TextWrapping="Wrap" />
+                        <TextBlock Text="• Bước 3: Sang mục 3 để nạp file/folder đã dịch, vá nguyên tử và kiểm tra câu nào đã vá / chưa vá."
+                                   FontSize="11.5"
+                                   Foreground="{StaticResource Brush.Text.Secondary}"
                                    TextWrapping="Wrap" />
                     </StackPanel>
+                </Border>
 
-                    <TabControl Grid.Row="1" SelectedIndex="{Binding SelectedRightTabIndex}">
-                        <!-- TAB 1: Structured Extracted Sentences -->
-                        <TabItem Header="Bảng Câu Chữ Đã Bóc Tách">
-                            <Grid RowDefinitions="Auto,*">
-                                <Border Grid.Row="0"
-                                        Background="#334155"
-                                        CornerRadius="4"
-                                        Padding="10,6"
-                                        Margin="0,4,0,6">
-                                    <Grid ColumnDefinitions="46,220,*,210" ColumnSpacing="10">
-                                        <TextBlock Grid.Column="0" Text="Ngôn ngữ" FontWeight="Bold" FontSize="11" />
-                                        <TextBlock Grid.Column="1" Text="Key / Đường dẫn định vị" FontWeight="Bold" FontSize="12" />
-                                        <TextBlock Grid.Column="2" Text="Nội dung gốc (Original Text)" FontWeight="Bold" FontSize="12" />
-                                        <TextBlock Grid.Column="3" Text="Ngữ cảnh (Context)" FontWeight="Bold" FontSize="12" />
+                <!-- 4. Sidebar Footer: Active Game, Backup Vault Badge & Global Progress -->
+                <Border Grid.Row="3"
+                        Classes="card"
+                        Padding="12,10">
+                    <StackPanel Spacing="8">
+                        <!-- Backup Vault Status Pill -->
+                        <Border Background="{StaticResource Brush.Status.VaultBg}"
+                                BorderBrush="{StaticResource Brush.Status.VaultBorder}"
+                                BorderThickness="1"
+                                CornerRadius="6"
+                                Padding="8,5">
+                            <StackPanel Orientation="Horizontal" Spacing="6">
+                                <PathIcon Data="{StaticResource Icon.ShieldCheck}"
+                                          Width="13"
+                                          Height="13"
+                                          Foreground="{StaticResource Brush.Status.VaultText}"
+                                          VerticalAlignment="Center" />
+                                <TextBlock Text="{Binding VaultStatusText}"
+                                           FontSize="11"
+                                           FontWeight="SemiBold"
+                                           Foreground="{StaticResource Brush.Status.VaultText}"
+                                           TextWrapping="Wrap" />
+                            </StackPanel>
+                        </Border>
+
+                        <!-- Global Progress Bar -->
+                        <ProgressBar Value="{Binding ProgressPercent}"
+                                     Minimum="0"
+                                     Maximum="100"
+                                     Height="6"
+                                     CornerRadius="3"
+                                     Foreground="{StaticResource Brush.Accent.Primary}"
+                                     Background="{StaticResource Brush.Surface.Inset}" />
+
+                        <!-- Live Status Message -->
+                        <TextBlock Text="{Binding StatusMessage}"
+                                   FontSize="11.5"
+                                   Foreground="{StaticResource Brush.Text.Secondary}"
+                                   TextWrapping="Wrap"
+                                   MaxLines="3" />
+                    </StackPanel>
+                </Border>
+
+            </Grid>
+        </Border>
+
+        <!-- ================================================================= -->
+        <!-- COLUMN 1 (~80%): RIGHT WORKSPACE CONTENT AREA                     -->
+        <!-- ================================================================= -->
+        <Grid Grid.Column="1" Margin="16">
+
+            <!-- ============================================================= -->
+            <!-- PAGE 1: QUÉT FOLDER ĐỂ TÌM TEXT DỊCH (SCANNER & OVERVIEW)     -->
+            <!-- ============================================================= -->
+            <Grid IsVisible="{Binding IsScanPageActive}"
+                  RowDefinitions="Auto,Auto,Auto,*"
+                  RowSpacing="14">
+
+                <!-- 1.1 Page Header & Game Folder Selector Card -->
+                <Border Grid.Row="0" Classes="card" Padding="18,16">
+                    <StackPanel Spacing="14">
+                        <Grid ColumnDefinitions="*,Auto">
+                            <StackPanel Grid.Column="0" Spacing="3">
+                                <TextBlock Text="1. Quét Thư Mục Game Để Tìm Text Dịch"
+                                           FontSize="18"
+                                           FontWeight="Bold"
+                                           Foreground="{StaticResource Brush.Text.Primary}" />
+                                <TextBlock Text="Tự động nhận diện phiên bản Unity, kiến trúc Mono / IL2CPP và quét sâu 2 pha toàn bộ tài nguyên chứa văn bản"
+                                           FontSize="12.5"
+                                           Foreground="{StaticResource Brush.Text.Muted}" />
+                            </StackPanel>
+
+                            <Button Grid.Column="1"
+                                    Classes="btn-extract"
+                                    Command="{Binding ShowExplorerPageCommand}"
+                                    IsEnabled="{Binding HasActiveGame}">
+                                <StackPanel Orientation="Horizontal" Spacing="7">
+                                    <TextBlock Text="Sang Mục 2: Xem Danh Sách &amp; Xem Trước Text" VerticalAlignment="Center" />
+                                    <PathIcon Data="{StaticResource Icon.ArrowRight}" Width="14" Height="14" VerticalAlignment="Center" />
+                                </StackPanel>
+                            </Button>
+                        </Grid>
+
+                        <Grid ColumnDefinitions="*,Auto,Auto,Auto" ColumnSpacing="10">
+                            <TextBox Grid.Column="0"
+                                     Text="{Binding GameFolderPath}"
+                                     IsReadOnly="True"
+                                     PlaceholderText="Chọn thư mục gốc của Game (nơi chứa file .exe và thư mục *_Data)..."
+                                     VerticalContentAlignment="Center"
+                                     FontFamily="{StaticResource Font.Mono}"
+                                     FontSize="12.5" />
+
+                            <Button Grid.Column="1"
+                                    Classes="btn-primary"
+                                    Click="OnPickGameFolderClick">
+                                <StackPanel Orientation="Horizontal" Spacing="7">
+                                    <PathIcon Data="{StaticResource Icon.FolderOpen}" Width="15" Height="15" />
+                                    <TextBlock Text="Chọn Thư Mục Game &amp; Quét" VerticalAlignment="Center" />
+                                </StackPanel>
+                            </Button>
+
+                            <Button Grid.Column="2"
+                                    Command="{Binding RescanCommand}"
+                                    IsEnabled="{Binding !IsBusy}"
+                                    ToolTip.Tip="Quét lại thư mục Game hiện tại">
+                                <StackPanel Orientation="Horizontal" Spacing="6">
+                                    <PathIcon Data="{StaticResource Icon.Refresh}" Width="14" Height="14" />
+                                    <TextBlock Text="Quét lại" VerticalAlignment="Center" />
+                                </StackPanel>
+                            </Button>
+
+                            <Button Grid.Column="3"
+                                    Command="{Binding CancelActiveOperationCommand}"
+                                    IsEnabled="{Binding IsBusy}"
+                                    ToolTip.Tip="Dừng tiến trình quét đang chạy">
+                                <StackPanel Orientation="Horizontal" Spacing="6">
+                                    <PathIcon Data="{StaticResource Icon.Stop}" Width="14" Height="14" Foreground="#F87171" />
+                                    <TextBlock Text="Dừng" VerticalAlignment="Center" />
+                                </StackPanel>
+                            </Button>
+                        </Grid>
+
+                        <!-- Detected Engine & Profile Banner -->
+                        <Border Classes="surface-inset" Padding="14,10">
+                            <Grid ColumnDefinitions="Auto,*,Auto" ColumnSpacing="12">
+                                <PathIcon Grid.Column="0"
+                                          Data="{StaticResource Icon.Layers}"
+                                          Width="18"
+                                          Height="18"
+                                          Foreground="{StaticResource Brush.Text.Highlight}"
+                                          VerticalAlignment="Center" />
+                                <StackPanel Grid.Column="1" Spacing="3">
+                                    <TextBlock Text="{Binding GameBannerText}"
+                                               FontSize="13"
+                                               FontWeight="SemiBold"
+                                               Foreground="{StaticResource Brush.Text.Accent}" />
+                                    <TextBlock Text="{Binding StatusMessage}"
+                                               FontSize="12"
+                                               Foreground="{StaticResource Brush.Text.Secondary}" />
+                                </StackPanel>
+                                <TextBlock Grid.Column="2"
+                                           Text="{Binding TotalValidEntriesCount, StringFormat='Tổng câu hợp lệ: {0:N0} câu'}"
+                                           FontSize="13"
+                                           FontWeight="Bold"
+                                           Foreground="#34D399"
+                                           VerticalAlignment="Center" />
+                            </Grid>
+                        </Border>
+                    </StackPanel>
+                </Border>
+
+                <!-- 1.2 4-Column Source Breakdown Cards -->
+                <Grid Grid.Row="1" ColumnDefinitions="*,*,*,*" ColumnSpacing="12">
+                    <Border Grid.Column="0" Classes="card" Padding="14,12">
+                        <StackPanel Spacing="4">
+                            <StackPanel Orientation="Horizontal" Spacing="6">
+                                <Border Background="#059669" CornerRadius="4" Padding="6,2">
+                                    <TextBlock Text="LOOSE" FontSize="10" FontWeight="Bold" Foreground="White" />
+                                </Border>
+                                <TextBlock Text="File Rời (JSON/XML/CSV/TXT)" FontSize="12" Foreground="{StaticResource Brush.Text.Muted}" VerticalAlignment="Center" />
+                            </StackPanel>
+                            <TextBlock Text="{Binding LooseFilesCount, StringFormat='{}{0:N0} nguồn'}"
+                                       FontSize="20"
+                                       FontWeight="Bold"
+                                       Foreground="{StaticResource Brush.Text.Primary}" />
+                        </StackPanel>
+                    </Border>
+
+                    <Border Grid.Column="1" Classes="card" Padding="14,12">
+                        <StackPanel Spacing="4">
+                            <StackPanel Orientation="Horizontal" Spacing="6">
+                                <Border Background="#2563EB" CornerRadius="4" Padding="6,2">
+                                    <TextBlock Text="TEXT" FontSize="10" FontWeight="Bold" Foreground="White" />
+                                </Border>
+                                <TextBlock Text="Unity TextAssets (.assets / .bundle)" FontSize="12" Foreground="{StaticResource Brush.Text.Muted}" VerticalAlignment="Center" />
+                            </StackPanel>
+                            <TextBlock Text="{Binding TextAssetsCount, StringFormat='{}{0:N0} nguồn'}"
+                                       FontSize="20"
+                                       FontWeight="Bold"
+                                       Foreground="{StaticResource Brush.Text.Primary}" />
+                        </StackPanel>
+                    </Border>
+
+                    <Border Grid.Column="2" Classes="card" Padding="14,12">
+                        <StackPanel Spacing="4">
+                            <StackPanel Orientation="Horizontal" Spacing="6">
+                                <Border Background="#9333EA" CornerRadius="4" Padding="6,2">
+                                    <TextBlock Text="MONO" FontSize="10" FontWeight="Bold" Foreground="White" />
+                                </Border>
+                                <TextBlock Text="MonoBehaviour (TypeTree / Binary)" FontSize="12" Foreground="{StaticResource Brush.Text.Muted}" VerticalAlignment="Center" />
+                            </StackPanel>
+                            <TextBlock Text="{Binding MonoBehavioursCount, StringFormat='{}{0:N0} nguồn'}"
+                                       FontSize="20"
+                                       FontWeight="Bold"
+                                       Foreground="{StaticResource Brush.Text.Primary}" />
+                        </StackPanel>
+                    </Border>
+
+                    <Border Grid.Column="3" Classes="card" Padding="14,12">
+                        <StackPanel Spacing="4">
+                            <StackPanel Orientation="Horizontal" Spacing="6">
+                                <Border Background="#D97706" CornerRadius="4" Padding="6,2">
+                                    <TextBlock Text="CODE" FontSize="10" FontWeight="Bold" Foreground="White" />
+                                </Border>
+                                <TextBlock Text="Mã Nguồn (DLL / IL2CPP Metadata)" FontSize="12" Foreground="{StaticResource Brush.Text.Muted}" VerticalAlignment="Center" />
+                            </StackPanel>
+                            <TextBlock Text="{Binding CodeStringsCount, StringFormat='{}{0:N0} nguồn'}"
+                                       FontSize="20"
+                                       FontWeight="Bold"
+                                       Foreground="{StaticResource Brush.Text.Primary}" />
+                        </StackPanel>
+                    </Border>
+                </Grid>
+
+                <!-- 1.3 Encrypted / Special Format Warnings Header -->
+                <Border Grid.Row="2"
+                        Background="{StaticResource Brush.Surface.Elevated}"
+                        BorderBrush="{StaticResource Brush.Border.Subtle}"
+                        BorderThickness="1"
+                        CornerRadius="8"
+                        Padding="14,10">
+                    <Grid ColumnDefinitions="Auto,*,Auto" ColumnSpacing="10">
+                        <PathIcon Grid.Column="0"
+                                  Data="{StaticResource Icon.ShieldAlert}"
+                                  Width="16"
+                                  Height="16"
+                                  Foreground="{StaticResource Brush.Status.WarningText}"
+                                  VerticalAlignment="Center" />
+                        <TextBlock Grid.Column="1"
+                                   Text="Kiểm Tra An Toàn &amp; Cảnh Báo File Nghi Ngờ Mã Hóa / Nén Đặc Biệt (Encrypted / High-Entropy Assets)"
+                                   FontSize="13"
+                                   FontWeight="Bold"
+                                   Foreground="{StaticResource Brush.Text.Primary}"
+                                   VerticalAlignment="Center" />
+                        <Border Grid.Column="2"
+                                Background="{StaticResource Brush.Surface.Inset}"
+                                BorderBrush="{StaticResource Brush.Border.Default}"
+                                BorderThickness="1"
+                                CornerRadius="5"
+                                Padding="9,3">
+                            <TextBlock Text="{Binding EncryptedBadgeText}"
+                                       FontSize="11.5"
+                                       FontWeight="SemiBold"
+                                       Foreground="{StaticResource Brush.Status.WarningText}" />
+                        </Border>
+                    </Grid>
+                </Border>
+
+                <!-- 1.4 Encrypted Warnings List -->
+                <Border Grid.Row="3" Classes="card" Padding="12">
+                    <Grid RowDefinitions="Auto,*" RowSpacing="8">
+                        <TextBlock Grid.Row="0"
+                                   Text="Danh sách các file có chữ ký lạ hoặc Entropy cao (&gt; 7.82 bits/byte) được tự động bỏ qua để bảo vệ cấu trúc Game:"
+                                   FontSize="12"
+                                   Foreground="{StaticResource Brush.Text.Muted}" />
+
+                        <ListBox Grid.Row="1" ItemsSource="{Binding EncryptedWarnings}">
+                            <ListBox.ItemTemplate>
+                                <DataTemplate x:DataType="models:EncryptedFileWarning">
+                                    <Border Background="{StaticResource Brush.Surface.Card}"
+                                            CornerRadius="6"
+                                            Padding="12,9"
+                                            Margin="0,2">
+                                        <StackPanel Spacing="4">
+                                            <Grid ColumnDefinitions="*,Auto">
+                                                <TextBlock Grid.Column="0"
+                                                           Text="{Binding RelativePath}"
+                                                           FontWeight="Bold"
+                                                           FontFamily="{StaticResource Font.Mono}"
+                                                           Foreground="{StaticResource Brush.Status.DangerText}" />
+                                                <TextBlock Grid.Column="1"
+                                                           Text="{Binding FileCategory}"
+                                                           FontSize="11.5"
+                                                           FontFamily="{StaticResource Font.Mono}"
+                                                           Foreground="{StaticResource Brush.Status.WarningText}" />
+                                            </Grid>
+                                            <TextBlock Text="{Binding Reason}"
+                                                       FontSize="12"
+                                                       Foreground="{StaticResource Brush.Text.Secondary}"
+                                                       TextWrapping="Wrap" />
+                                        </StackPanel>
+                                    </Border>
+                                </DataTemplate>
+                            </ListBox.ItemTemplate>
+                        </ListBox>
+                    </Grid>
+                </Border>
+            </Grid>
+
+            <!-- ============================================================= -->
+            <!-- PAGE 2: DANH SÁCH TEXT & XEM TRƯỚC (EXPLORER, PREVIEW, EXPORT) -->
+            <!-- ============================================================= -->
+            <Grid IsVisible="{Binding IsExplorerPageActive}"
+                  RowDefinitions="Auto,*,Auto"
+                  RowSpacing="12">
+
+                <!-- 2.1 Filter & Global Full-Text Search Bar (2 Rows: Top = Language + Search | Bottom = Checkboxes + Smart Filter Toggle) -->
+                <Border Grid.Row="0" Classes="card" Padding="14,10">
+                    <Grid RowDefinitions="Auto,Auto" RowSpacing="10">
+
+                        <!-- Hàng 1 (Trên): Chọn Ngôn Ngữ + Thanh Tìm Kiếm Full-Text Rộng Rãi -->
+                        <Grid Grid.Row="0" ColumnDefinitions="Auto,*" ColumnSpacing="12">
+                            <Border Grid.Column="0"
+                                    Background="{StaticResource Brush.Surface.Inset}"
+                                    BorderBrush="{StaticResource Brush.Accent.Brand}"
+                                    BorderThickness="1"
+                                    CornerRadius="6"
+                                    Padding="8,3"
+                                    VerticalAlignment="Center">
+                                <StackPanel Orientation="Horizontal" Spacing="7">
+                                    <PathIcon Data="{StaticResource Icon.Globe}"
+                                              Width="14"
+                                              Height="14"
+                                              Foreground="{StaticResource Brush.Text.Highlight}"
+                                              VerticalAlignment="Center" />
+                                    <TextBlock Text="Ngôn ngữ:"
+                                               VerticalAlignment="Center"
+                                               FontSize="12"
+                                               FontWeight="SemiBold"
+                                               Foreground="{StaticResource Brush.Text.Accent}" />
+                                    <ComboBox ItemsSource="{Binding LanguageOptions}"
+                                              SelectedItem="{Binding SelectedLanguageOption}"
+                                              MinWidth="185"
+                                              FontSize="12"
+                                              VerticalAlignment="Center">
+                                        <ComboBox.ItemTemplate>
+                                            <DataTemplate x:DataType="vm:LanguageFilterOption">
+                                                <TextBlock Text="{Binding DisplayLabel}" FontWeight="SemiBold" />
+                                            </DataTemplate>
+                                        </ComboBox.ItemTemplate>
+                                    </ComboBox>
+                                </StackPanel>
+                            </Border>
+
+                            <!-- Global Full-Text Search Input -->
+                            <Grid Grid.Column="1" ColumnDefinitions="*,Auto" ColumnSpacing="6" VerticalAlignment="Center">
+                                <TextBox Grid.Column="0"
+                                         Text="{Binding SearchQuery}"
+                                         PlaceholderText="Tìm kiếm Full-Text toàn bộ câu thoại, nhân vật, ID, tên file..."
+                                         VerticalContentAlignment="Center"
+                                         FontSize="12.5">
+                                    <TextBox.InnerLeftContent>
+                                        <PathIcon Data="{StaticResource Icon.Search}"
+                                                  Width="14"
+                                                  Height="14"
+                                                  Foreground="{StaticResource Brush.Text.Muted}"
+                                                  Margin="10,0,4,0" />
+                                    </TextBox.InnerLeftContent>
+                                </TextBox>
+                                <Button Grid.Column="1"
+                                        Classes="btn-compact"
+                                        Command="{Binding ClearSearchCommand}"
+                                        ToolTip.Tip="Xóa từ khóa tìm kiếm">
+                                    <PathIcon Data="{StaticResource Icon.Close}" Width="12" Height="12" />
+                                </Button>
+                            </Grid>
+                        </Grid>
+
+                        <!-- Hàng 2 (Dưới): Các Nút Tích Chọn Loại Nguồn & Nút Bật Lọc Thông Minh -->
+                        <Grid Grid.Row="1" ColumnDefinitions="*,Auto" ColumnSpacing="12">
+                            <StackPanel Grid.Column="0" Orientation="Horizontal" Spacing="14" VerticalAlignment="Center">
+                                <CheckBox Content="File rời" IsChecked="{Binding IncludeLooseFiles}" FontSize="12" />
+                                <CheckBox Content="TextAsset" IsChecked="{Binding IncludeTextAssets}" FontSize="12" />
+                                <CheckBox Content="MonoBehaviour" IsChecked="{Binding IncludeMonoBehaviours}" FontSize="12" />
+                                <CheckBox Content="Code (DLL/IL2CPP)" IsChecked="{Binding IncludeCodeStrings}" FontSize="12" />
+
+                                <Border Width="1" Height="20" Background="{StaticResource Brush.Border.Default}" Margin="2,0" />
+
+                                <ToggleSwitch IsChecked="{Binding UseSmartFilter}"
+                                              OnContent="Lọc thông minh: Bật"
+                                              OffContent="Lọc thông minh: Tắt"
+                                              FontSize="12"
+                                              ToolTip.Tip="Tự động ẩn đường dẫn Asset, Shader, biến kỹ thuật và các mục có 0 câu khớp ngôn ngữ đã chọn" />
+                            </StackPanel>
+
+                            <CheckBox Grid.Column="1"
+                                      Content="Chỉ hiện câu khớp từ khóa"
+                                      IsChecked="{Binding FilterPreviewBySearch}"
+                                      FontSize="12"
+                                      VerticalAlignment="Center" />
+                        </Grid>
+
+                    </Grid>
+                </Border>
+
+                <!-- 2.2 Master-Detail Explorer (Left: Target List | Right: Sentence & Raw Preview) -->
+                <Grid Grid.Row="1" ColumnDefinitions="420,12,*">
+
+                    <!-- Left Pane: Discovered Targets List -->
+                    <Border Grid.Column="0" Classes="card" Padding="12">
+                        <Grid RowDefinitions="Auto,*,Auto" RowSpacing="8">
+
+                            <Grid Grid.Row="0" ColumnDefinitions="*,Auto,Auto" ColumnSpacing="6">
+                                <StackPanel Grid.Column="0" Orientation="Horizontal" Spacing="7" VerticalAlignment="Center">
+                                    <PathIcon Data="{StaticResource Icon.Layers}"
+                                              Width="15"
+                                              Height="15"
+                                              Foreground="{StaticResource Brush.Text.Highlight}" />
+                                    <TextBlock Text="Danh Sách Nguồn Dữ Liệu"
+                                               FontWeight="Bold"
+                                               FontSize="13.5"
+                                               Foreground="{StaticResource Brush.Text.Primary}" />
+                                </StackPanel>
+                                <Button Grid.Column="1"
+                                        Classes="btn-compact"
+                                        Command="{Binding SelectAllVisibleCommand}"
+                                        ToolTip.Tip="Tick chọn toàn bộ các mục đang hiển thị">
+                                    <StackPanel Orientation="Horizontal" Spacing="5">
+                                        <PathIcon Data="{StaticResource Icon.CheckSquare}" Width="12" Height="12" />
+                                        <TextBlock Text="Chọn hết" />
+                                    </StackPanel>
+                                </Button>
+                                <Button Grid.Column="2"
+                                        Classes="btn-compact"
+                                        Command="{Binding ClearAllSelectionsCommand}"
+                                        Content="Bỏ chọn" />
+                            </Grid>
+
+                            <ListBox Grid.Row="1"
+                                     ItemsSource="{Binding FilteredTargets}"
+                                     SelectedItem="{Binding SelectedTarget}">
+                                <ListBox.ItemTemplate>
+                                    <DataTemplate x:DataType="vm:ScannedTargetItemViewModel">
+                                        <Grid ColumnDefinitions="Auto,*" ColumnSpacing="8">
+                                            <CheckBox Grid.Column="0"
+                                                      IsChecked="{Binding IsSelected}"
+                                                      VerticalAlignment="Center" />
+                                            <StackPanel Grid.Column="1" Spacing="3">
+                                                <Grid ColumnDefinitions="Auto,*,Auto" ColumnSpacing="6">
+                                                    <Border Grid.Column="0"
+                                                            Background="{Binding SourceBadgeBrush}"
+                                                            CornerRadius="4"
+                                                            Padding="6,2"
+                                                            VerticalAlignment="Center">
+                                                        <TextBlock Text="{Binding SourceBadgeText}"
+                                                                   FontSize="10"
+                                                                   FontWeight="Bold"
+                                                                   Foreground="White" />
+                                                    </Border>
+                                                    <TextBlock Grid.Column="1"
+                                                               Text="{Binding DisplayName}"
+                                                               FontWeight="SemiBold"
+                                                               FontSize="12.5"
+                                                               Foreground="{StaticResource Brush.Text.Primary}"
+                                                               TextTrimming="CharacterEllipsis"
+                                                               VerticalAlignment="Center" />
+                                                    <TextBlock Grid.Column="2"
+                                                               Text="{Binding ScoreBadge}"
+                                                               FontSize="11"
+                                                               Foreground="{StaticResource Brush.Text.Highlight}"
+                                                               VerticalAlignment="Center" />
+                                                </Grid>
+
+                                                <Grid ColumnDefinitions="*,Auto" ColumnSpacing="8">
+                                                    <TextBlock Grid.Column="0"
+                                                               Text="{Binding ContainerSubtitle}"
+                                                               FontSize="11"
+                                                               FontFamily="{StaticResource Font.Mono}"
+                                                               Foreground="{StaticResource Brush.Text.Muted}"
+                                                               TextTrimming="CharacterEllipsis" />
+                                                    <TextBlock Grid.Column="1"
+                                                               Text="{Binding EntryCountBadge}"
+                                                               FontSize="11"
+                                                               FontWeight="SemiBold"
+                                                               Foreground="{StaticResource Brush.Text.Secondary}" />
+                                                </Grid>
+                                            </StackPanel>
+                                        </Grid>
+                                    </DataTemplate>
+                                </ListBox.ItemTemplate>
+                            </ListBox>
+
+                            <TextBlock Grid.Row="2"
+                                       Text="{Binding SelectionSummary}"
+                                       FontSize="11.5"
+                                       Foreground="{StaticResource Brush.Text.Secondary}" />
+                        </Grid>
+                    </Border>
+
+                    <!-- Resizable Splitter -->
+                    <GridSplitter Grid.Column="1"
+                                  Classes="workspace-splitter"
+                                  ResizeDirection="Columns" />
+
+                    <!-- Right Pane: Preview Sentences & Raw Content -->
+                    <Border Grid.Column="2" Classes="card" Padding="12">
+                        <Grid RowDefinitions="Auto,*" RowSpacing="8">
+
+                            <Border Grid.Row="0" Classes="surface-inset" Padding="12,9">
+                                <StackPanel Spacing="3">
+                                    <TextBlock Text="{Binding PreviewHeaderTitle}"
+                                               FontSize="14.5"
+                                               FontWeight="Bold"
+                                               Foreground="{StaticResource Brush.Text.Primary}"
+                                               TextTrimming="CharacterEllipsis" />
+                                    <TextBlock Text="{Binding PreviewHeaderMeta}"
+                                               FontSize="11.5"
+                                               FontFamily="{StaticResource Font.Mono}"
+                                               Foreground="{StaticResource Brush.Text.Accent}"
+                                               TextTrimming="CharacterEllipsis" />
+                                </StackPanel>
+                            </Border>
+
+                            <TabControl Grid.Row="1" SelectedIndex="{Binding SelectedRightTabIndex}">
+
+                                <!-- Tab 1: Extracted Sentences Table -->
+                                <TabItem>
+                                    <TabItem.Header>
+                                        <StackPanel Orientation="Horizontal" Spacing="6">
+                                            <PathIcon Data="{StaticResource Icon.Table}" Width="14" Height="14" />
+                                            <TextBlock Text="Bảng Câu Chữ Đã Bóc Tách" />
+                                        </StackPanel>
+                                    </TabItem.Header>
+
+                                    <Grid RowDefinitions="Auto,*" Margin="0,6,0,0">
+                                        <Border Grid.Row="0"
+                                                Background="{StaticResource Brush.Surface.TableHeader}"
+                                                BorderBrush="{StaticResource Brush.Border.Subtle}"
+                                                BorderThickness="1,1,1,0"
+                                                CornerRadius="6,6,0,0"
+                                                Padding="10,7">
+                                            <Grid ColumnDefinitions="70,56,190,*,150" ColumnSpacing="10">
+                                                <TextBlock Grid.Column="0" Text="ID" FontWeight="Bold" FontSize="11.5" Foreground="{StaticResource Brush.Text.Secondary}" />
+                                                <TextBlock Grid.Column="1" Text="Ngôn ngữ" FontWeight="Bold" FontSize="11.5" Foreground="{StaticResource Brush.Text.Highlight}" />
+                                                <TextBlock Grid.Column="2" Text="Key / Đường dẫn" FontWeight="Bold" FontSize="11.5" Foreground="{StaticResource Brush.Text.Secondary}" />
+                                                <TextBlock Grid.Column="3" Text="Nội dung câu gốc (Original Text)" FontWeight="Bold" FontSize="11.5" Foreground="{StaticResource Brush.Text.Secondary}" />
+                                                <TextBlock Grid.Column="4" Text="Ngữ cảnh" FontWeight="Bold" FontSize="11.5" Foreground="{StaticResource Brush.Text.Secondary}" />
+                                            </Grid>
+                                        </Border>
+
+                                        <ListBox Grid.Row="1"
+                                                 ItemsSource="{Binding PreviewEntries}"
+                                                 CornerRadius="0,0,6,6">
+                                            <ListBox.ItemTemplate>
+                                                <DataTemplate x:DataType="vm:PreviewEntryItem">
+                                                    <Grid ColumnDefinitions="70,56,190,*,150" ColumnSpacing="10">
+                                                        <TextBlock Grid.Column="0"
+                                                                   Text="{Binding Id}"
+                                                                   FontSize="11.5"
+                                                                   FontFamily="{StaticResource Font.Mono}"
+                                                                   Foreground="{StaticResource Brush.Text.Muted}"
+                                                                   TextTrimming="CharacterEllipsis" />
+                                                        <Border Grid.Column="1"
+                                                                Background="{StaticResource Brush.Surface.Elevated}"
+                                                                BorderBrush="{StaticResource Brush.Border.Default}"
+                                                                BorderThickness="1"
+                                                                CornerRadius="4"
+                                                                Padding="4,1"
+                                                                HorizontalAlignment="Left"
+                                                                VerticalAlignment="Top">
+                                                            <TextBlock Text="{Binding LanguageBadge}"
+                                                                       FontSize="10.5"
+                                                                       FontWeight="Bold"
+                                                                       Foreground="{StaticResource Brush.Text.Highlight}" />
+                                                        </Border>
+                                                        <TextBlock Grid.Column="2"
+                                                                   Text="{Binding Key}"
+                                                                   FontSize="11.5"
+                                                                   FontFamily="{StaticResource Font.Mono}"
+                                                                   Foreground="{StaticResource Brush.Text.Accent}"
+                                                                   TextTrimming="CharacterEllipsis" />
+                                                        <TextBlock Grid.Column="3"
+                                                                   Text="{Binding OriginalText}"
+                                                                   FontSize="12.5"
+                                                                   Foreground="{StaticResource Brush.Text.Primary}"
+                                                                   TextWrapping="Wrap" />
+                                                        <StackPanel Grid.Column="4" Spacing="2">
+                                                            <TextBlock Text="{Binding Context}"
+                                                                       FontSize="11"
+                                                                       Foreground="{StaticResource Brush.Text.Muted}"
+                                                                       TextTrimming="CharacterEllipsis" />
+                                                            <TextBlock Text="{Binding NoiseTag}"
+                                                                       FontSize="10.5"
+                                                                       Foreground="{StaticResource Brush.Status.NoiseText}" />
+                                                        </StackPanel>
+                                                    </Grid>
+                                                </DataTemplate>
+                                            </ListBox.ItemTemplate>
+                                        </ListBox>
                                     </Grid>
+                                </TabItem>
+
+                                <!-- Tab 2: Raw File Content -->
+                                <TabItem>
+                                    <TabItem.Header>
+                                        <StackPanel Orientation="Horizontal" Spacing="6">
+                                            <PathIcon Data="{StaticResource Icon.Code}" Width="14" Height="14" />
+                                            <TextBlock Text="Nội Dung File Thô (Raw Preview)" />
+                                        </StackPanel>
+                                    </TabItem.Header>
+                                    <TextBox Margin="0,6,0,0"
+                                             Text="{Binding PreviewRawText}"
+                                             IsReadOnly="True"
+                                             AcceptsReturn="True"
+                                             TextWrapping="Wrap"
+                                             FontFamily="{StaticResource Font.Mono}"
+                                             FontSize="12" />
+                                </TabItem>
+                            </TabControl>
+                        </Grid>
+                    </Border>
+                </Grid>
+
+                <!-- 2.3 Bottom Extraction Toolbar -->
+                <Border Grid.Row="2" Classes="card" Padding="14,10">
+                    <Grid ColumnDefinitions="*,Auto" ColumnSpacing="14">
+                        <StackPanel Grid.Column="0" Orientation="Horizontal" Spacing="14" VerticalAlignment="Center">
+                            <TextBlock Text="Định dạng xuất (Extract):"
+                                       FontSize="12.5"
+                                       FontWeight="Bold"
+                                       Foreground="{StaticResource Brush.Text.Secondary}"
+                                       VerticalAlignment="Center" />
+                            <CheckBox Content="Gói .translator.json" IsChecked="{Binding ExportTranslatorJson}" FontSize="12" />
+                            <CheckBox Content="Bảng .csv + .manifest.json + Master.csv" IsChecked="{Binding ExportCsv}" FontSize="12" />
+                            <CheckBox Content="Kèm bản sao File gốc (Raw)" IsChecked="{Binding IncludeRawFile}" FontSize="12" />
+                        </StackPanel>
+
+                        <StackPanel Grid.Column="1" Orientation="Horizontal" Spacing="10">
+                            <Button Command="{Binding OpenLastExportFolderCommand}"
+                                    IsEnabled="{Binding LastExportDirectory, Converter={x:Static StringConverters.IsNotNullOrEmpty}}">
+                                <StackPanel Orientation="Horizontal" Spacing="6">
+                                    <PathIcon Data="{StaticResource Icon.FolderOpen}" Width="14" Height="14" />
+                                    <TextBlock Text="Mở thư mục vừa xuất" VerticalAlignment="Center" />
+                                </StackPanel>
+                            </Button>
+
+                            <Button Classes="btn-extract"
+                                    Click="OnExtractClick"
+                                    IsEnabled="{Binding !IsBusy}"
+                                    Padding="16,8">
+                                <StackPanel Orientation="Horizontal" Spacing="7">
+                                    <PathIcon Data="{StaticResource Icon.Download}" Width="15" Height="15" />
+                                    <TextBlock Text="Extract Các Mục Đã Chọn" VerticalAlignment="Center" />
+                                </StackPanel>
+                            </Button>
+                        </StackPanel>
+                    </Grid>
+                </Border>
+            </Grid>
+
+            <!-- ============================================================= -->
+            <!-- PAGE 3: VÁ CÁC BẢN VIỆT HÓA (CHIA 2 MÀN HÌNH Ở PHẦN BÊN PHẢI) -->
+            <!-- ============================================================= -->
+            <Grid IsVisible="{Binding IsPatchPageActive}"
+                  RowDefinitions="Auto,*"
+                  RowSpacing="14">
+
+                <!-- 3.0 Top Header & Dual-Screen Switcher -->
+                <Border Grid.Row="0" Classes="card" Padding="16,12">
+                    <Grid ColumnDefinitions="*,Auto" ColumnSpacing="16">
+
+                        <StackPanel Grid.Column="0" Spacing="3" VerticalAlignment="Center">
+                            <TextBlock Text="3. Vá Các Bản Việt Hóa &amp; Theo Dõi Trạng Thái Đã Vá / Chưa Vá"
+                                       FontSize="17"
+                                       FontWeight="Bold"
+                                       Foreground="{StaticResource Brush.Text.Primary}" />
+                            <TextBlock Text="{Binding PatchCoverageSummaryText}"
+                                       FontSize="12.5"
+                                       FontWeight="SemiBold"
+                                       Foreground="{StaticResource Brush.Text.Accent}" />
+                        </StackPanel>
+
+                        <!-- Segmented Switcher for Screen 1 & Screen 2 -->
+                        <Border Grid.Column="1"
+                                Background="{StaticResource Brush.Surface.Inset}"
+                                BorderBrush="{StaticResource Brush.Border.Default}"
+                                BorderThickness="1"
+                                CornerRadius="9"
+                                Padding="4"
+                                VerticalAlignment="Center">
+                            <StackPanel Orientation="Horizontal" Spacing="4">
+                                <Button Classes="subnav-tab"
+                                        Classes.active="{Binding IsPatchSelectScreenActive}"
+                                        Command="{Binding ShowPatchSelectScreenCommand}">
+                                    <StackPanel Orientation="Horizontal" Spacing="7">
+                                        <PathIcon Data="{StaticResource Icon.PackageCheck}" Width="15" Height="15" />
+                                        <TextBlock Text="Màn Hình 1: Chọn File / Folder Để Vá" VerticalAlignment="Center" />
+                                    </StackPanel>
+                                </Button>
+
+                                <Button Classes="subnav-tab"
+                                        Classes.active="{Binding IsPatchStatusScreenActive}"
+                                        Command="{Binding ShowPatchStatusScreenCommand}">
+                                    <StackPanel Orientation="Horizontal" Spacing="7">
+                                        <PathIcon Data="{StaticResource Icon.CheckCircle}" Width="15" Height="15" />
+                                        <TextBlock Text="Màn Hình 2: Text Đã Vá &amp; Chưa Vá" VerticalAlignment="Center" />
+                                    </StackPanel>
+                                </Button>
+                            </StackPanel>
+                        </Border>
+                    </Grid>
+                </Border>
+
+                <!-- ========================================================= -->
+                <!-- MÀN HÌNH 3.1: CHỌN CÁC FILE HOẶC FOLDER ĐỂ VÁ              -->
+                <!-- ========================================================= -->
+                <Grid Grid.Row="1"
+                      IsVisible="{Binding IsPatchSelectScreenActive}"
+                      ColumnDefinitions="6*,14,4*">
+
+                    <!-- Left Column of Screen 3.1: Select & Stage Files/Folders to Patch -->
+                    <Border Grid.Column="0" Classes="card" Padding="16">
+                        <Grid RowDefinitions="Auto,Auto,*,Auto" RowSpacing="12">
+
+                            <StackPanel Grid.Row="0" Spacing="3">
+                                <TextBlock Text="Màn Hình 1 — Chọn Các File Hoặc Thư Mục Bản Dịch Để Vá"
+                                           FontSize="15"
+                                           FontWeight="Bold"
+                                           Foreground="{StaticResource Brush.Text.Primary}" />
+                                <TextBlock Text="Bạn có thể thêm nhiều file (.csv, .translator.json, Raw) hoặc nguyên thư mục bản dịch vào danh sách chờ vá bên dưới"
+                                           FontSize="12"
+                                           Foreground="{StaticResource Brush.Text.Muted}" />
+                            </StackPanel>
+
+                            <!-- Action Buttons to Add Folder or Files -->
+                            <Grid Grid.Row="1" ColumnDefinitions="Auto,Auto,*,Auto" ColumnSpacing="8">
+                                <Button Grid.Column="0"
+                                        Classes="btn-primary"
+                                        Click="OnStagePatchFolderClick">
+                                    <StackPanel Orientation="Horizontal" Spacing="7">
+                                        <PathIcon Data="{StaticResource Icon.FolderOpen}" Width="14" Height="14" />
+                                        <TextBlock Text="+ Thêm Thư Mục Bản Dịch" VerticalAlignment="Center" />
+                                    </StackPanel>
+                                </Button>
+
+                                <Button Grid.Column="1"
+                                        Classes="btn-patch-secondary"
+                                        Click="OnStagePatchFilesClick">
+                                    <StackPanel Orientation="Horizontal" Spacing="7">
+                                        <PathIcon Data="{StaticResource Icon.FileCheck}" Width="14" Height="14" />
+                                        <TextBlock Text="+ Thêm File Lẻ (.csv / .json / Raw)" VerticalAlignment="Center" />
+                                    </StackPanel>
+                                </Button>
+
+                                <Button Grid.Column="3"
+                                        Classes="btn-compact"
+                                        Command="{Binding ClearStagedPackagesCommand}"
+                                        IsEnabled="{Binding HasStagedPackages}">
+                                    <StackPanel Orientation="Horizontal" Spacing="5">
+                                        <PathIcon Data="{StaticResource Icon.Trash}" Width="13" Height="13" Foreground="#F87171" />
+                                        <TextBlock Text="Xóa danh sách" VerticalAlignment="Center" />
+                                    </StackPanel>
+                                </Button>
+                            </Grid>
+
+                            <!-- Staged Packages Queue ListBox -->
+                            <ListBox Grid.Row="2" ItemsSource="{Binding StagedPatchPackages}">
+                                <ListBox.ItemTemplate>
+                                    <DataTemplate x:DataType="vm:PatchStagedPackageItem">
+                                        <Border Background="{StaticResource Brush.Surface.Card}"
+                                                BorderBrush="{StaticResource Brush.Border.Subtle}"
+                                                BorderThickness="1"
+                                                CornerRadius="7"
+                                                Padding="12,9"
+                                                Margin="0,2">
+                                            <Grid ColumnDefinitions="Auto,*,Auto,Auto" ColumnSpacing="10">
+                                                <Border Grid.Column="0"
+                                                        Background="{StaticResource Brush.Accent.Patch}"
+                                                        CornerRadius="5"
+                                                        Padding="8,3"
+                                                        VerticalAlignment="Center">
+                                                    <TextBlock Text="{Binding KindBadge}"
+                                                               FontSize="10.5"
+                                                               FontWeight="Bold"
+                                                               Foreground="White" />
+                                                </Border>
+
+                                                <StackPanel Grid.Column="1" Spacing="2" VerticalAlignment="Center">
+                                                    <TextBlock Text="{Binding DisplayName}"
+                                                               FontSize="13"
+                                                               FontWeight="Bold"
+                                                               Foreground="{StaticResource Brush.Text.Primary}"
+                                                               TextTrimming="CharacterEllipsis" />
+                                                    <TextBlock Text="{Binding FullPath}"
+                                                               FontSize="11"
+                                                               FontFamily="{StaticResource Font.Mono}"
+                                                               Foreground="{StaticResource Brush.Text.Muted}"
+                                                               TextTrimming="CharacterEllipsis" />
+                                                </StackPanel>
+
+                                                <Border Grid.Column="2"
+                                                        Background="{StaticResource Brush.Status.PatchedBg}"
+                                                        BorderBrush="{StaticResource Brush.Status.PatchedBorder}"
+                                                        BorderThickness="1"
+                                                        CornerRadius="5"
+                                                        Padding="8,4"
+                                                        VerticalAlignment="Center">
+                                                    <TextBlock Text="{Binding SummaryBadge}"
+                                                               FontSize="11.5"
+                                                               FontWeight="SemiBold"
+                                                               Foreground="{StaticResource Brush.Status.PatchedText}" />
+                                                </Border>
+
+                                                <Button Grid.Column="3"
+                                                        Classes="btn-compact"
+                                                        Command="{Binding $parent[Window].((vm:MainWindowViewModel)DataContext).RemoveStagedPackageCommand}"
+                                                        CommandParameter="{Binding}"
+                                                        ToolTip.Tip="Bỏ gói này khỏi danh sách">
+                                                    <PathIcon Data="{StaticResource Icon.Close}" Width="12" Height="12" />
+                                                </Button>
+                                            </Grid>
+                                        </Border>
+                                    </DataTemplate>
+                                </ListBox.ItemTemplate>
+                            </ListBox>
+
+                            <!-- Quick 1-Step Patch Footer -->
+                            <Border Grid.Row="3" Classes="surface-inset" Padding="12,9">
+                                <Grid ColumnDefinitions="*,Auto,Auto" ColumnSpacing="8">
+                                    <TextBlock Grid.Column="0"
+                                               Text="{Binding StagedPackagesSummary}"
+                                               FontSize="12"
+                                               FontWeight="SemiBold"
+                                               Foreground="{StaticResource Brush.Text.Secondary}"
+                                               VerticalAlignment="Center" />
+
+                                    <Button Grid.Column="1"
+                                            Classes="btn-compact"
+                                            Click="OnPatchFolderClick"
+                                            IsEnabled="{Binding !IsBusy}"
+                                            ToolTip.Tip="Chọn 1 thư mục và thực thi vá ngay lập tức">
+                                        <TextBlock Text="Chọn Folder &amp; Vá Ngay" />
+                                    </Button>
+
+                                    <Button Grid.Column="2"
+                                            Classes="btn-compact"
+                                            Click="OnPatchFileClick"
+                                            IsEnabled="{Binding !IsBusy}"
+                                            ToolTip.Tip="Chọn 1 file lẻ và thực thi vá ngay lập tức">
+                                        <TextBlock Text="Chọn 1 File &amp; Vá Ngay" />
+                                    </Button>
+                                </Grid>
+                            </Border>
+                        </Grid>
+                    </Border>
+
+                    <!-- Right Column of Screen 3.1: Atomic Patch Execution, Backup Vault & Coverage Preview -->
+                    <StackPanel Grid.Column="2" Spacing="14">
+
+                        <!-- Card 1: Execute Atomic Patch CTA -->
+                        <Border Classes="card" Padding="16">
+                            <StackPanel Spacing="12">
+                                <TextBlock Text="Thực Thi Vá Nguyên Tử (Atomic Patcher)"
+                                           FontSize="15"
+                                           FontWeight="Bold"
+                                           Foreground="{StaticResource Brush.Text.Primary}" />
+                                <TextBlock Text="Ghi đè an toàn qua file tạm (.tmp), tự động đóng gói lại AssetBundle (LZ4), cập nhật cây MonoBehaviour, vá chỉ thị ldstr trong .dll và tái cấu trúc bảng offset của global-metadata.dat."
+                                           FontSize="12"
+                                           Foreground="{StaticResource Brush.Text.Muted}"
+                                           TextWrapping="Wrap" />
+
+                                <!-- Coverage Mini Metrics -->
+                                <Grid ColumnDefinitions="*,*" ColumnSpacing="10">
+                                    <Border Grid.Column="0"
+                                            Background="{StaticResource Brush.Status.PatchedBg}"
+                                            BorderBrush="{StaticResource Brush.Status.PatchedBorder}"
+                                            BorderThickness="1"
+                                            CornerRadius="7"
+                                            Padding="12,9">
+                                        <StackPanel Spacing="2">
+                                            <TextBlock Text="ĐÃ DỊCH / SẴN SÀNG VÁ" FontSize="10.5" FontWeight="Bold" Foreground="{StaticResource Brush.Status.PatchedText}" />
+                                            <TextBlock Text="{Binding PatchedSentencesTotalCount, StringFormat='{}{0:N0} câu'}"
+                                                       FontSize="18"
+                                                       FontWeight="Bold"
+                                                       Foreground="{StaticResource Brush.Status.PatchedText}" />
+                                            <TextBlock Text="{Binding PatchedTargetsCount, StringFormat='Trên {0:N0} nguồn dữ liệu'}"
+                                                       FontSize="11"
+                                                       Foreground="{StaticResource Brush.Text.Secondary}" />
+                                        </StackPanel>
+                                    </Border>
+
+                                    <Border Grid.Column="1"
+                                            Background="{StaticResource Brush.Surface.Inset}"
+                                            BorderBrush="{StaticResource Brush.Border.Default}"
+                                            BorderThickness="1"
+                                            CornerRadius="7"
+                                            Padding="12,9">
+                                        <StackPanel Spacing="2">
+                                            <TextBlock Text="CHƯA VÁ / CHƯA DỊCH" FontSize="10.5" FontWeight="Bold" Foreground="{StaticResource Brush.Text.Muted}" />
+                                            <TextBlock Text="{Binding UnpatchedSentencesTotalCount, StringFormat='{}{0:N0} câu'}"
+                                                       FontSize="18"
+                                                       FontWeight="Bold"
+                                                       Foreground="{StaticResource Brush.Status.WarningText}" />
+                                            <TextBlock Text="{Binding UnpatchedTargetsCount, StringFormat='Trên {0:N0} nguồn chưa dịch'}"
+                                                       FontSize="11"
+                                                       Foreground="{StaticResource Brush.Text.Secondary}" />
+                                        </StackPanel>
+                                    </Border>
+                                </Grid>
+
+                                <Button Classes="btn-patch"
+                                        Command="{Binding ExecuteStagedPatchesCommand}"
+                                        IsEnabled="{Binding !IsBusy}"
+                                        HorizontalAlignment="Stretch"
+                                        HorizontalContentAlignment="Center"
+                                        Padding="16,11">
+                                    <StackPanel Orientation="Horizontal" Spacing="8">
+                                        <PathIcon Data="{StaticResource Icon.WrenchPatch}" Width="16" Height="16" />
+                                        <TextBlock Text="Thực Thi Vá Nguyên Tử Tất Cả Gói Đã Chọn" FontSize="13.5" VerticalAlignment="Center" />
+                                    </StackPanel>
+                                </Button>
+
+                                <Button Classes="btn-primary"
+                                        Command="{Binding ShowPatchStatusScreenCommand}"
+                                        HorizontalAlignment="Stretch"
+                                        HorizontalContentAlignment="Center"
+                                        Padding="14,9">
+                                    <StackPanel Orientation="Horizontal" Spacing="7">
+                                        <TextBlock Text="Sang Màn Hình 2: Xem Chi Tiết Text Đã Vá &amp; Chưa Vá" VerticalAlignment="Center" />
+                                        <PathIcon Data="{StaticResource Icon.ArrowRight}" Width="14" Height="14" VerticalAlignment="Center" />
+                                    </StackPanel>
+                                </Button>
+                            </StackPanel>
+                        </Border>
+
+                        <!-- Card 2: Immutable Backup Vault (.translator_backup/) -->
+                        <Border Classes="card" Padding="16">
+                            <StackPanel Spacing="10">
+                                <StackPanel Orientation="Horizontal" Spacing="8">
+                                    <PathIcon Data="{StaticResource Icon.ShieldCheck}"
+                                              Width="18"
+                                              Height="18"
+                                              Foreground="{StaticResource Brush.Status.VaultText}" />
+                                    <TextBlock Text="Kho Sao Lưu Bất Biến (.translator_backup/)"
+                                               FontSize="14.5"
+                                               FontWeight="Bold"
+                                               Foreground="{StaticResource Brush.Text.Primary}" />
+                                </StackPanel>
+
+                                <TextBlock Text="Tự động sao lưu và đối chiếu mã băm SHA-256 của file gốc trước khi can thiệp. Khôi phục Game về nguyên trạng ban đầu chỉ với 1 nút bấm (kho backup vẫn được bảo toàn)."
+                                           FontSize="12"
+                                           Foreground="{StaticResource Brush.Text.Muted}"
+                                           TextWrapping="Wrap" />
+
+                                <Border Background="{StaticResource Brush.Status.VaultBg}"
+                                        BorderBrush="{StaticResource Brush.Status.VaultBorder}"
+                                        BorderThickness="1"
+                                        CornerRadius="6"
+                                        Padding="10,8">
+                                    <TextBlock Text="{Binding VaultStatusText}"
+                                               FontSize="12"
+                                               FontWeight="SemiBold"
+                                               Foreground="{StaticResource Brush.Status.VaultText}"
+                                               TextWrapping="Wrap" />
                                 </Border>
 
+                                <Button Classes="btn-warning"
+                                        Command="{Binding RestoreOriginalCommand}"
+                                        IsEnabled="{Binding HasOriginalBackup}"
+                                        HorizontalAlignment="Stretch"
+                                        HorizontalContentAlignment="Center"
+                                        Padding="14,9">
+                                    <StackPanel Orientation="Horizontal" Spacing="7">
+                                        <PathIcon Data="{StaticResource Icon.RotateCcw}" Width="15" Height="15" />
+                                        <TextBlock Text="Khôi Phục Gốc (Restore Original 1-Click)" VerticalAlignment="Center" />
+                                    </StackPanel>
+                                </Button>
+                            </StackPanel>
+                        </Border>
+                    </StackPanel>
+                </Grid>
+
+                <!-- ========================================================= -->
+                <!-- MÀN HÌNH 3.2: PHẦN TEXT NÀO ĐÃ VÁ RỒI VÀ CHƯA (2 CẤP ĐỘ)  -->
+                <!-- ========================================================= -->
+                <Grid Grid.Row="1"
+                      IsVisible="{Binding IsPatchStatusScreenActive}"
+                      RowDefinitions="Auto,*"
+                      RowSpacing="12">
+
+                    <!-- Filter & Search Bar for Screen 3.2 -->
+                    <Border Grid.Row="0" Classes="card" Padding="14,10">
+                        <Grid ColumnDefinitions="Auto,Auto,*,Auto" ColumnSpacing="14">
+
+                            <!-- Level 1 Filter: Source / Target Status -->
+                            <StackPanel Grid.Column="0" Orientation="Horizontal" Spacing="8" VerticalAlignment="Center">
+                                <TextBlock Text="Lọc Nguồn/File:"
+                                           FontSize="12"
+                                           FontWeight="SemiBold"
+                                           Foreground="{StaticResource Brush.Text.Secondary}"
+                                           VerticalAlignment="Center" />
+                                <ComboBox ItemsSource="{Binding TargetPatchFilterOptions}"
+                                          SelectedItem="{Binding SelectedTargetPatchFilterOption}"
+                                          MinWidth="200"
+                                          FontSize="12">
+                                    <ComboBox.ItemTemplate>
+                                        <DataTemplate x:DataType="vm:PatchStatusFilterOption">
+                                            <TextBlock Text="{Binding DisplayLabel}" FontWeight="SemiBold" />
+                                        </DataTemplate>
+                                    </ComboBox.ItemTemplate>
+                                </ComboBox>
+                            </StackPanel>
+
+                            <!-- Level 2 Filter: Sentence Status (All / Patched / Unpatched) -->
+                            <StackPanel Grid.Column="1" Orientation="Horizontal" Spacing="8" VerticalAlignment="Center">
+                                <TextBlock Text="Lọc Câu Chữ:"
+                                           FontSize="12"
+                                           FontWeight="SemiBold"
+                                           Foreground="{StaticResource Brush.Text.Highlight}"
+                                           VerticalAlignment="Center" />
+                                <ComboBox ItemsSource="{Binding SentencePatchFilterOptions}"
+                                          SelectedItem="{Binding SelectedSentencePatchFilterOption}"
+                                          MinWidth="240"
+                                          FontSize="12">
+                                    <ComboBox.ItemTemplate>
+                                        <DataTemplate x:DataType="vm:PatchStatusFilterOption">
+                                            <TextBlock Text="{Binding DisplayLabel}" FontWeight="SemiBold" />
+                                        </DataTemplate>
+                                    </ComboBox.ItemTemplate>
+                                </ComboBox>
+                            </StackPanel>
+
+                            <!-- Search Sentences in Comparison Table -->
+                            <Grid Grid.Column="2" ColumnDefinitions="*,Auto" ColumnSpacing="6" VerticalAlignment="Center">
+                                <TextBox Grid.Column="0"
+                                         Text="{Binding PatchSearchQuery}"
+                                         PlaceholderText="Tìm kiếm câu gốc, câu đã dịch hoặc Key trong nguồn đang chọn..."
+                                         VerticalContentAlignment="Center"
+                                         FontSize="12.5">
+                                    <TextBox.InnerLeftContent>
+                                        <PathIcon Data="{StaticResource Icon.Search}"
+                                                  Width="14"
+                                                  Height="14"
+                                                  Foreground="{StaticResource Brush.Text.Muted}"
+                                                  Margin="10,0,4,0" />
+                                    </TextBox.InnerLeftContent>
+                                </TextBox>
+                                <Button Grid.Column="1"
+                                        Classes="btn-compact"
+                                        Command="{Binding ClearPatchSearchCommand}">
+                                    <PathIcon Data="{StaticResource Icon.Close}" Width="12" Height="12" />
+                                </Button>
+                            </Grid>
+
+                            <Button Grid.Column="3"
+                                    Classes="btn-compact"
+                                    Command="{Binding ShowPatchSelectScreenCommand}">
+                                <TextBlock Text="← Quay lại Chọn File / Folder" />
+                            </Button>
+                        </Grid>
+                    </Border>
+
+                    <!-- 2-Level Split View: Left = File/Source Progress List | Right = Sentence Comparison Table -->
+                    <Grid Grid.Row="1" ColumnDefinitions="430,12,*">
+
+                        <!-- Level 1 (Left): List of Files/Sources with % Progress & Status Badges -->
+                        <Border Grid.Column="0" Classes="card" Padding="12">
+                            <Grid RowDefinitions="Auto,*" RowSpacing="8">
+                                <StackPanel Grid.Row="0" Orientation="Horizontal" Spacing="7">
+                                    <PathIcon Data="{StaticResource Icon.Layers}"
+                                              Width="15"
+                                              Height="15"
+                                              Foreground="{StaticResource Brush.Text.Highlight}" />
+                                    <TextBlock Text="Cấp Độ 1: Tiến Độ Theo Từng File / Nguồn"
+                                               FontWeight="Bold"
+                                               FontSize="13.5"
+                                               Foreground="{StaticResource Brush.Text.Primary}" />
+                                </StackPanel>
+
                                 <ListBox Grid.Row="1"
-                                         ItemsSource="{Binding PreviewEntries}"
-                                         Background="#0F172A"
-                                         CornerRadius="6">
+                                         ItemsSource="{Binding FilteredPatchTargets}"
+                                         SelectedItem="{Binding SelectedPatchTarget}">
                                     <ListBox.ItemTemplate>
-                                        <DataTemplate x:DataType="vm:PreviewEntryItem">
-                                            <Border BorderBrush="#1E293B" BorderThickness="0,0,0,1" Padding="6,6">
-                                                <Grid ColumnDefinitions="46,220,*,210" ColumnSpacing="10">
+                                        <DataTemplate x:DataType="vm:PatchTargetStatusItemViewModel">
+                                            <StackPanel Spacing="5" Margin="2,2">
+                                                <Grid ColumnDefinitions="Auto,*,Auto" ColumnSpacing="6">
                                                     <Border Grid.Column="0"
-                                                            Background="#334155"
+                                                            Background="{Binding SourceBadgeBrush}"
                                                             CornerRadius="4"
-                                                            Padding="4,2"
-                                                            VerticalAlignment="Top"
-                                                            HorizontalAlignment="Center">
-                                                        <TextBlock Text="{Binding LanguageBadge}"
-                                                                   Foreground="#38BDF8"
+                                                            Padding="6,2"
+                                                            VerticalAlignment="Center">
+                                                        <TextBlock Text="{Binding SourceBadgeText}"
                                                                    FontSize="10"
-                                                                   FontWeight="Bold" />
+                                                                   FontWeight="Bold"
+                                                                   Foreground="White" />
                                                     </Border>
 
-                                                    <StackPanel Grid.Column="1" Spacing="2">
-                                                        <SelectableTextBlock Text="{Binding Key}"
-                                                                             Foreground="#93C5FD"
-                                                                             FontSize="12"
-                                                                             TextWrapping="Wrap" />
-                                                        <TextBlock Text="{Binding NoiseTag}"
-                                                                   Foreground="#F87171"
+                                                    <TextBlock Grid.Column="1"
+                                                               Text="{Binding DisplayName}"
+                                                               FontWeight="SemiBold"
+                                                               FontSize="12.5"
+                                                               Foreground="{StaticResource Brush.Text.Primary}"
+                                                               TextTrimming="CharacterEllipsis"
+                                                               VerticalAlignment="Center" />
+
+                                                    <Border Grid.Column="2"
+                                                            Background="{Binding StatusBadgeBg}"
+                                                            BorderBrush="{Binding StatusBadgeBorder}"
+                                                            BorderThickness="1"
+                                                            CornerRadius="4"
+                                                            Padding="6,2"
+                                                            VerticalAlignment="Center">
+                                                        <TextBlock Text="{Binding StatusBadgeText}"
                                                                    FontSize="10"
-                                                                   IsVisible="{Binding IsSystemNoise}" />
-                                                    </StackPanel>
-
-                                                    <SelectableTextBlock Grid.Column="2"
-                                                                         Text="{Binding OriginalText}"
-                                                                         Foreground="#F1F5F9"
-                                                                         FontSize="13"
-                                                                         TextWrapping="Wrap" />
-
-                                                    <SelectableTextBlock Grid.Column="3"
-                                                                         Text="{Binding Context}"
-                                                                         Foreground="#94A3B8"
-                                                                         FontSize="11"
-                                                                         TextWrapping="Wrap" />
+                                                                   FontWeight="Bold"
+                                                                   Foreground="{Binding StatusBadgeForeground}" />
+                                                    </Border>
                                                 </Grid>
-                                            </Border>
+
+                                                <Grid ColumnDefinitions="*,Auto" ColumnSpacing="8">
+                                                    <TextBlock Grid.Column="0"
+                                                               Text="{Binding ContainerSubtitle}"
+                                                               FontSize="11"
+                                                               FontFamily="{StaticResource Font.Mono}"
+                                                               Foreground="{StaticResource Brush.Text.Muted}"
+                                                               TextTrimming="CharacterEllipsis" />
+                                                    <TextBlock Grid.Column="1"
+                                                               Text="{Binding ProgressLabel}"
+                                                               FontSize="11"
+                                                               FontWeight="SemiBold"
+                                                               Foreground="{StaticResource Brush.Text.Secondary}" />
+                                                </Grid>
+
+                                                <ProgressBar Value="{Binding ProgressPercent}"
+                                                             Minimum="0"
+                                                             Maximum="100"
+                                                             Height="5"
+                                                             CornerRadius="2.5"
+                                                             Foreground="#10B981"
+                                                             Background="{StaticResource Brush.Surface.Card}" />
+                                            </StackPanel>
                                         </DataTemplate>
                                     </ListBox.ItemTemplate>
                                 </ListBox>
                             </Grid>
-                        </TabItem>
+                        </Border>
 
-                        <!-- TAB 2: Raw Original File Content -->
-                        <TabItem Header="Nội Dung Raw (Nguyên Bản)">
-                            <TextBox Text="{Binding PreviewRawText}"
-                                     IsReadOnly="True"
-                                     AcceptsReturn="True"
-                                     TextWrapping="NoWrap"
-                                     FontFamily="Consolas, Monospace"
-                                     FontSize="12"
-                                     Background="#0F172A"
-                                     Margin="0,4,0,0" />
-                        </TabItem>
+                        <!-- Splitter -->
+                        <GridSplitter Grid.Column="1"
+                                      Classes="workspace-splitter"
+                                      ResizeDirection="Columns" />
 
-                        <!-- TAB 3: Suspected Encrypted Files -->
-                        <TabItem Header="Cảnh Báo File Nghi Mã Hóa">
-                            <ListBox ItemsSource="{Binding EncryptedWarnings}"
-                                     Background="#0F172A"
-                                     CornerRadius="6"
-                                     Margin="0,4,0,0">
-                                <ListBox.ItemTemplate>
-                                    <DataTemplate x:DataType="models:EncryptedFileWarning">
-                                        <StackPanel Spacing="3" Margin="6">
-                                            <TextBlock Text="{Binding RelativePath}"
-                                                       Foreground="#FCA5A5"
-                                                       FontWeight="Bold" />
-                                            <TextBlock Text="{Binding FileCategory}"
-                                                       Foreground="#FDBA74"
-                                                       FontSize="11" />
-                                            <TextBlock Text="{Binding Reason}"
-                                                       Foreground="#CBD5E1"
-                                                       FontSize="12"
-                                                       TextWrapping="Wrap" />
-                                        </StackPanel>
-                                    </DataTemplate>
-                                </ListBox.ItemTemplate>
-                            </ListBox>
-                        </TabItem>
-                    </TabControl>
+                        <!-- Level 2 (Right): Sentence-by-Sentence Comparison Table (Original -> Translated) -->
+                        <Border Grid.Column="2" Classes="card" Padding="12">
+                            <Grid RowDefinitions="Auto,Auto,*" RowSpacing="8">
+
+                                <Border Grid.Row="0" Classes="surface-inset" Padding="12,9">
+                                    <StackPanel Spacing="3">
+                                        <TextBlock Text="{Binding SelectedPatchTargetHeader}"
+                                                   FontSize="14.5"
+                                                   FontWeight="Bold"
+                                                   Foreground="{StaticResource Brush.Text.Primary}"
+                                                   TextTrimming="CharacterEllipsis" />
+                                        <TextBlock Text="{Binding SelectedPatchTargetMeta}"
+                                                   FontSize="11.5"
+                                                   FontFamily="{StaticResource Font.Mono}"
+                                                   Foreground="{StaticResource Brush.Text.Accent}"
+                                                   TextTrimming="CharacterEllipsis" />
+                                    </StackPanel>
+                                </Border>
+
+                                <!-- Table Column Header -->
+                                <Border Grid.Row="1"
+                                        Background="{StaticResource Brush.Surface.TableHeader}"
+                                        BorderBrush="{StaticResource Brush.Border.Subtle}"
+                                        BorderThickness="1,1,1,0"
+                                        CornerRadius="6,6,0,0"
+                                        Padding="10,7">
+                                    <Grid ColumnDefinitions="95,170,*,*" ColumnSpacing="12">
+                                        <TextBlock Grid.Column="0" Text="Trạng Thái" FontWeight="Bold" FontSize="11.5" Foreground="{StaticResource Brush.Text.Highlight}" />
+                                        <TextBlock Grid.Column="1" Text="ID / Key" FontWeight="Bold" FontSize="11.5" Foreground="{StaticResource Brush.Text.Secondary}" />
+                                        <TextBlock Grid.Column="2" Text="Câu Gốc (Original Text)" FontWeight="Bold" FontSize="11.5" Foreground="{StaticResource Brush.Text.Secondary}" />
+                                        <TextBlock Grid.Column="3" Text="Câu Đã Dịch / Đã Vá (Translated Text)" FontWeight="Bold" FontSize="11.5" Foreground="#6EE7B7" />
+                                    </Grid>
+                                </Border>
+
+                                <!-- Sentence Rows -->
+                                <ListBox Grid.Row="2"
+                                         ItemsSource="{Binding PatchComparisonEntries}"
+                                         CornerRadius="0,0,6,6"
+                                         Margin="0,-8,0,0">
+                                    <ListBox.ItemTemplate>
+                                        <DataTemplate x:DataType="vm:PatchSentenceComparisonItem">
+                                            <Grid ColumnDefinitions="95,170,*,*" ColumnSpacing="12">
+                                                <StackPanel Grid.Column="0" Spacing="3" VerticalAlignment="Top">
+                                                    <Border Background="{Binding StatusBadgeBg}"
+                                                            BorderBrush="{Binding StatusBadgeBorder}"
+                                                            BorderThickness="1"
+                                                            CornerRadius="4"
+                                                            Padding="6,2"
+                                                            HorizontalAlignment="Left">
+                                                        <TextBlock Text="{Binding StatusBadgeText}"
+                                                                   FontSize="10"
+                                                                   FontWeight="Bold"
+                                                                   Foreground="{Binding StatusBadgeForeground}" />
+                                                    </Border>
+                                                    <TextBlock Text="{Binding Id}"
+                                                               FontSize="10.5"
+                                                               FontFamily="{StaticResource Font.Mono}"
+                                                               Foreground="{StaticResource Brush.Text.Muted}"
+                                                               TextTrimming="CharacterEllipsis" />
+                                                </StackPanel>
+
+                                                <TextBlock Grid.Column="1"
+                                                           Text="{Binding Key}"
+                                                           FontSize="11.5"
+                                                           FontFamily="{StaticResource Font.Mono}"
+                                                           Foreground="{StaticResource Brush.Text.Accent}"
+                                                           TextTrimming="CharacterEllipsis"
+                                                           VerticalAlignment="Top" />
+
+                                                <TextBlock Grid.Column="2"
+                                                           Text="{Binding OriginalText}"
+                                                           FontSize="12.5"
+                                                           Foreground="{StaticResource Brush.Text.Primary}"
+                                                           TextWrapping="Wrap"
+                                                           VerticalAlignment="Top" />
+
+                                                <TextBlock Grid.Column="3"
+                                                           Text="{Binding DisplayTranslation}"
+                                                           FontSize="12.5"
+                                                           FontWeight="SemiBold"
+                                                           Foreground="{Binding StatusBadgeForeground}"
+                                                           TextWrapping="Wrap"
+                                                           VerticalAlignment="Top" />
+                                            </Grid>
+                                        </DataTemplate>
+                                    </ListBox.ItemTemplate>
+                                </ListBox>
+                            </Grid>
+                        </Border>
+                    </Grid>
                 </Grid>
-            </Border>
+
+            </Grid>
+
         </Grid>
 
-        <!-- 4. BOTTOM ACTION & EXPORT BAR -->
-        <Border Grid.Row="3"
-                Background="#1E293B"
-                BorderBrush="#334155"
-                BorderThickness="1"
-                CornerRadius="8"
-                Padding="14,10"
-                Margin="0,10,0,0">
-            <Grid ColumnDefinitions="*,Auto" ColumnSpacing="16">
-                <StackPanel Grid.Column="0" Spacing="6" VerticalAlignment="Center">
-                    <TextBlock Text="{Binding StatusMessage}"
-                               FontSize="12"
-                               Foreground="#E2E8F0"
-                               TextTrimming="CharacterEllipsis" />
-                    <ProgressBar Minimum="0"
-                                 Maximum="100"
-                                 Value="{Binding ProgressPercent}"
-                                 Height="6" />
-                </StackPanel>
-
-                <StackPanel Grid.Column="1" Orientation="Horizontal" Spacing="12" VerticalAlignment="Center">
-                    <ComboBox ItemsSource="{Binding LanguageOptions}"
-                              SelectedItem="{Binding SelectedLanguageOption}"
-                              Width="195"
-                              VerticalAlignment="Center">
-                        <ComboBox.ItemTemplate>
-                            <DataTemplate x:DataType="vm:LanguageFilterOption">
-                                <TextBlock Text="{Binding DisplayLabel}" FontWeight="SemiBold" />
-                            </DataTemplate>
-                        </ComboBox.ItemTemplate>
-                    </ComboBox>
-
-                    <CheckBox IsChecked="{Binding ExportTranslatorJson}" Content="JSON (.translator.json)" />
-                    <CheckBox IsChecked="{Binding ExportCsv}" Content="Bảng CSV (.csv)" />
-                    <CheckBox IsChecked="{Binding IncludeRawFile}" Content="Kèm file Raw" />
-
-                    <Button Command="{Binding OpenLastExportFolderCommand}"
-                            IsVisible="{Binding LastExportDirectory, Converter={x:Static StringConverters.IsNotNullOrEmpty}}"
-                            Padding="12,8"
-                            Content="Mở thư mục vừa xuất" />
-
-                    <Button Click="OnExtractClick"
-                            Background="#10B981"
-                            Foreground="White"
-                            FontWeight="Bold"
-                            Padding="18,9"
-                            Content="Extract ra máy..." />
-                </StackPanel>
-            </Grid>
-        </Border>
     </Grid>
 </Window>
