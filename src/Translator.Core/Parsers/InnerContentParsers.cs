@@ -1,5 +1,7 @@
 using System.Text;
+using System.Text.Encodings.Web;
 using System.Text.Json;
+using System.Text.Json.Nodes;
 using System.Xml;
 using System.Xml.Linq;
 using Translator.Core.Abstractions;
@@ -59,9 +61,30 @@ public sealed class InnerContentParserRegistry
 
         return (_fallback.Format, _fallback.Parse(content));
     }
+
+    public string Reconstruct(
+        InnerTextFormat format,
+        string originalContent,
+        IReadOnlyDictionary<string, string> translations)
+    {
+        if (string.IsNullOrEmpty(originalContent) || translations.Count == 0)
+        {
+            return originalContent;
+        }
+
+        foreach (IInnerContentParser parser in _parsers)
+        {
+            if (parser.Format == format && parser is IInnerContentReconstructor reconstructor)
+            {
+                return reconstructor.Reconstruct(originalContent, translations);
+            }
+        }
+
+        return _fallback.Reconstruct(originalContent, translations);
+    }
 }
 
-public sealed class JsonContentParser : IInnerContentParser
+public sealed class JsonContentParser : IInnerContentParser, IInnerContentReconstructor
 {
     public InnerTextFormat Format => InnerTextFormat.Json;
 
@@ -173,9 +196,144 @@ public sealed class JsonContentParser : IInnerContentParser
     private static string EscapeJsonKey(string key) =>
         key.Replace("\\", "\\\\", StringComparison.Ordinal)
            .Replace("\"", "\\\"", StringComparison.Ordinal);
+
+    public string Reconstruct(
+        string originalContent,
+        IReadOnlyDictionary<string, string> translations)
+    {
+        if (string.IsNullOrWhiteSpace(originalContent) || translations.Count == 0)
+        {
+            return originalContent;
+        }
+
+        var docOptions = new JsonDocumentOptions
+        {
+            AllowTrailingCommas = true,
+            CommentHandling = JsonCommentHandling.Skip
+        };
+
+        JsonNode? root = JsonNode.Parse(originalContent, nodeOptions: null, docOptions);
+        if (root is null)
+        {
+            return originalContent;
+        }
+
+        bool modified = ApplyTranslationsToJsonNode(ref root, "$", translations);
+        if (!modified || root is null)
+        {
+            return originalContent;
+        }
+
+        bool isMultiline = originalContent.Contains('\n');
+        var writeOptions = new JsonSerializerOptions
+        {
+            WriteIndented = isMultiline,
+            Encoder = JavaScriptEncoder.UnsafeRelaxedJsonEscaping
+        };
+
+        string result = root.ToJsonString(writeOptions);
+        if (originalContent.Contains("\r\n", StringComparison.Ordinal) && !result.Contains("\r\n", StringComparison.Ordinal))
+        {
+            result = result.Replace("\n", "\r\n", StringComparison.Ordinal);
+        }
+        else if (!originalContent.Contains("\r\n", StringComparison.Ordinal) && result.Contains("\r\n", StringComparison.Ordinal))
+        {
+            result = result.Replace("\r\n", "\n", StringComparison.Ordinal);
+        }
+
+        return result;
+    }
+
+    private static bool ApplyTranslationsToJsonNode(
+        ref JsonNode? node,
+        string currentPath,
+        IReadOnlyDictionary<string, string> translations)
+    {
+        if (node is null)
+        {
+            return false;
+        }
+
+        bool anyModified = false;
+        if (node is JsonObject obj)
+        {
+            List<string> keys = obj.Select(kvp => kvp.Key).ToList();
+            foreach (string propName in keys)
+            {
+                JsonNode? child = obj[propName];
+                if (child is null)
+                {
+                    continue;
+                }
+
+                string childPath = IsSimpleJsonIdentifier(propName)
+                    ? $"{currentPath}.{propName}"
+                    : $"{currentPath}[\"{EscapeJsonKey(propName)}\"]";
+
+                if (child is JsonValue val && val.TryGetValue<string>(out _))
+                {
+                    if (translations.TryGetValue(childPath, out string? translated) &&
+                        !string.IsNullOrEmpty(translated))
+                    {
+                        obj[propName] = JsonValue.Create(translated);
+                        anyModified = true;
+                    }
+                }
+                else
+                {
+                    JsonNode? mutableChild = child;
+                    if (ApplyTranslationsToJsonNode(ref mutableChild, childPath, translations))
+                    {
+                        anyModified = true;
+                    }
+                }
+            }
+        }
+        else if (node is JsonArray arr)
+        {
+            for (int i = 0; i < arr.Count; i++)
+            {
+                JsonNode? item = arr[i];
+                if (item is null)
+                {
+                    continue;
+                }
+
+                string itemPath = $"{currentPath}[{i}]";
+                if (item is JsonValue val && val.TryGetValue<string>(out _))
+                {
+                    if (translations.TryGetValue(itemPath, out string? translated) &&
+                        !string.IsNullOrEmpty(translated))
+                    {
+                        arr[i] = JsonValue.Create(translated);
+                        anyModified = true;
+                    }
+                }
+                else
+                {
+                    JsonNode? mutableItem = item;
+                    if (ApplyTranslationsToJsonNode(ref mutableItem, itemPath, translations))
+                    {
+                        anyModified = true;
+                    }
+                }
+            }
+        }
+        else if (node is JsonValue rootVal && rootVal.TryGetValue<string>(out _))
+        {
+            if (translations.TryGetValue(currentPath, out string? translated) &&
+                !string.IsNullOrEmpty(translated))
+            {
+                node = JsonValue.Create(translated);
+                anyModified = true;
+            }
+        }
+
+        return anyModified;
+    }
 }
 
-public sealed class XmlContentParser : IInnerContentParser
+public sealed class XmlContentParser : IInnerContentParser, IInnerContentReconstructor
 {
     private static readonly HashSet<string> TranslatableAttributes = new(StringComparer.OrdinalIgnoreCase)
     {
@@ -274,9 +432,101 @@ public sealed class XmlContentParser : IInnerContentParser
             WalkElement(child, $"{xpath}/{tag}[{idx}]", output);
         }
     }
+
+    public string Reconstruct(
+        string originalContent,
+        IReadOnlyDictionary<string, string> translations)
+    {
+        if (string.IsNullOrWhiteSpace(originalContent) || translations.Count == 0)
+        {
+            return originalContent;
+        }
+
+        var settings = new XmlReaderSettings
+        {
+            DtdProcessing = DtdProcessing.Ignore,
+            CheckCharacters = false
+        };
+
+        using var stringReader = new StringReader(originalContent);
+        using var xmlReader = XmlReader.Create(stringReader, settings);
+        XDocument doc = XDocument.Load(xmlReader, LoadOptions.PreserveWhitespace);
+
+        if (doc.Root is null)
+        {
+            return originalContent;
+        }
+
+        bool modified = ApplyTranslationsToXmlElement(doc.Root, $"/{doc.Root.Name.LocalName}[0]", translations);
+        if (!modified)
+        {
+            return originalContent;
+        }
+
+        bool hasXmlDeclaration = doc.Declaration is not null ||
+                                 originalContent.TrimStart().StartsWith("<?xml", StringComparison.OrdinalIgnoreCase);
+
+        var sb = new StringBuilder(originalContent.Length + 128);
+        if (hasXmlDeclaration && doc.Declaration is not null)
+        {
+            sb.Append(doc.Declaration.ToString());
+            string newline = originalContent.Contains("\r\n", StringComparison.Ordinal) ? "\r\n" : "\n";
+            sb.Append(newline);
+        }
+
+        sb.Append(doc.ToString(SaveOptions.DisableFormatting));
+        return sb.ToString();
+    }
+
+    private static bool ApplyTranslationsToXmlElement(
+        XElement element,
+        string xpath,
+        IReadOnlyDictionary<string, string> translations)
+    {
+        bool anyModified = false;
+
+        foreach (XAttribute attr in element.Attributes())
+        {
+            string attrName = attr.Name.LocalName;
+            string attrKey = $"xml:{xpath}@{attrName}";
+            if (translations.TryGetValue(attrKey, out string? translatedAttr) &&
+                !string.IsNullOrEmpty(translatedAttr))
+            {
+                attr.Value = translatedAttr;
+                anyModified = true;
+            }
+        }
+
+        if (!element.HasElements)
+        {
+            string textKey = $"xml:{xpath}#text";
+            if (translations.TryGetValue(textKey, out string? translatedText) &&
+                !string.IsNullOrEmpty(translatedText))
+            {
+                element.Value = translatedText;
+                anyModified = true;
+            }
+
+            return anyModified;
+        }
+
+        var tagCounters = new Dictionary<string, int>(StringComparer.Ordinal);
+        foreach (XElement child in element.Elements())
+        {
+            string tag = child.Name.LocalName;
+            tagCounters.TryGetValue(tag, out int idx);
+            tagCounters[tag] = idx + 1;
+            if (ApplyTranslationsToXmlElement(child, $"{xpath}/{tag}[{idx}]", translations))
+            {
+                anyModified = true;
+            }
+        }
+
+        return anyModified;
+    }
 }
 
-public sealed class CsvTsvContentParser : IInnerContentParser
+public sealed class CsvTsvContentParser : IInnerContentParser, IInnerContentReconstructor
 {
     private readonly char _delimiter;
 
@@ -530,9 +780,145 @@ public sealed class CsvTsvContentParser : IInnerContentParser
              .Replace("=", "_", StringComparison.Ordinal)
              .Replace("\r", "", StringComparison.Ordinal)
              .Replace("\n", " ", StringComparison.Ordinal);
+
+    public string Reconstruct(
+        string originalContent,
+        IReadOnlyDictionary<string, string> translations)
+    {
+        if (string.IsNullOrEmpty(originalContent) || translations.Count == 0)
+        {
+            return originalContent;
+        }
+
+        List<List<string>> rows = ParseTable(originalContent, _delimiter);
+        if (rows.Count == 0)
+        {
+            return originalContent;
+        }
+
+        bool hasHeader = LooksLikeHeaderRow(rows[0], rows.Count > 1 ? rows[1] : null);
+        IReadOnlyList<string> headers = hasHeader ? rows[0] : [];
+        string prefix = _delimiter == '\t' ? "tsv" : "csv";
+
+        // Also build a coordinate lookup for any key of form csv:row=R;col=C...
+        var coordinateOverrides = new Dictionary<(int Row, int Col), string>();
+        foreach ((string k, string v) in translations)
+        {
+            if (string.IsNullOrEmpty(v))
+            {
+                continue;
+            }
+
+            if (TryExtractCsvRowCol(k, out int r, out int c))
+            {
+                coordinateOverrides[(r, c)] = v;
+            }
+        }
+
+        bool modified = false;
+        for (int r = 0; r < rows.Count; r++)
+        {
+            List<string> row = rows[r];
+            if (row.Count == 0)
+            {
+                continue;
+            }
+
+            string rowKey = row[0].Trim();
+            bool col0IsId = row.Count >= 2 && IsLikelyKeyCell(rowKey);
+
+            for (int c = 0; c < row.Count; c++)
+            {
+                string colHeader = c < headers.Count && !string.IsNullOrWhiteSpace(headers[c])
+                    ? headers[c].Trim()
+                    : $"Col{c}";
+
+                string safeRowKey = SanitizeKeyToken(col0IsId ? rowKey : $"Row{r}");
+                string exactKey = $"{prefix}:row={r};col={c};key={safeRowKey};hdr={SanitizeKeyToken(colHeader)}";
+
+                if (translations.TryGetValue(exactKey, out string? translated) && !string.IsNullOrEmpty(translated))
+                {
+                    row[c] = translated;
+                    modified = true;
+                }
+                else if (coordinateOverrides.TryGetValue((r, c), out string? coordVal) && !string.IsNullOrEmpty(coordVal))
+                {
+                    row[c] = coordVal;
+                    modified = true;
+                }
+            }
+        }
+
+        if (!modified)
+        {
+            return originalContent;
+        }
+
+        string newline = originalContent.Contains("\r\n", StringComparison.Ordinal) ? "\r\n" : "\n";
+        bool endsWithNewline = originalContent.EndsWith('\n') || originalContent.EndsWith('\r');
+
+        var sb = new StringBuilder(originalContent.Length + 128);
+        for (int r = 0; r < rows.Count; r++)
+        {
+            List<string> row = rows[r];
+            for (int c = 0; c < row.Count; c++)
+            {
+                if (c > 0)
+                {
+                    sb.Append(_delimiter);
+                }
+
+                sb.Append(FormatTableCell(row[c], _delimiter));
+            }
+
+            if (r + 1 < rows.Count || endsWithNewline)
+            {
+                sb.Append(newline);
+            }
+        }
+
+        return sb.ToString();
+    }
+
+    private static bool TryExtractCsvRowCol(string key, out int row, out int col)
+    {
+        row = -1;
+        col = -1;
+        int rowIdx = key.IndexOf("row=", StringComparison.OrdinalIgnoreCase);
+        int colIdx = key.IndexOf("col=", StringComparison.OrdinalIgnoreCase);
+        if (rowIdx < 0 || colIdx < 0)
+        {
+            return false;
+        }
+
+        rowIdx += 4;
+        int rowEnd = key.IndexOf(';', rowIdx);
+        ReadOnlySpan<char> rowSpan = rowEnd > rowIdx ? key.AsSpan(rowIdx, rowEnd - rowIdx) : key.AsSpan(rowIdx);
+
+        colIdx += 4;
+        int colEnd = key.IndexOf(';', colIdx);
+        ReadOnlySpan<char> colSpan = colEnd > colIdx ? key.AsSpan(colIdx, colEnd - colIdx) : key.AsSpan(colIdx);
+
+        return int.TryParse(rowSpan, out row) && int.TryParse(colSpan, out col);
+    }
+
+    private static string FormatTableCell(string value, char delimiter)
+    {
+        if (string.IsNullOrEmpty(value))
+        {
+            return string.Empty;
+        }
+
+        if (value.IndexOfAny([delimiter, '"', '\r', '\n']) >= 0)
+        {
+            return $"\"{value.Replace("\"", "\"\"", StringComparison.Ordinal)}\"";
+        }
+
+        return value;
+    }
 }
 
-public sealed class IniKeyValueContentParser : IInnerContentParser
+public sealed class IniKeyValueContentParser : IInnerContentParser, IInnerContentReconstructor
 {
     public InnerTextFormat Format => InnerTextFormat.IniKeyValue;
 
@@ -629,9 +1015,65 @@ public sealed class IniKeyValueContentParser : IInnerContentParser
 
         return results;
     }
+
+    public string Reconstruct(
+        string originalContent,
+        IReadOnlyDictionary<string, string> translations)
+    {
+        if (string.IsNullOrEmpty(originalContent) || translations.Count == 0)
+        {
+            return originalContent;
+        }
+
+        string newline = originalContent.Contains("\r\n", StringComparison.Ordinal) ? "\r\n" : "\n";
+        string[] lines = originalContent.Replace("\r\n", "\n", StringComparison.Ordinal).Split('\n');
+        string currentSection = string.Empty;
+        bool modified = false;
+
+        for (int i = 0; i < lines.Length; i++)
+        {
+            string rawLine = lines[i];
+            string trimmed = rawLine.Trim();
+            if (trimmed.Length == 0 || trimmed[0] is '#' or ';' || trimmed.StartsWith("//", StringComparison.Ordinal))
+            {
+                continue;
+            }
+
+            if (trimmed[0] == '[' && trimmed[^1] == ']')
+            {
+                currentSection = trimmed[1..^1].Trim();
+                continue;
+            }
+
+            int eqInRaw = rawLine.IndexOf('=');
+            if (eqInRaw <= 0)
+            {
+                continue;
+            }
+
+            string key = rawLine[..eqInRaw].Trim();
+            string fullKey = string.IsNullOrEmpty(currentSection)
+                ? $"ini:{key}"
+                : $"ini:[{currentSection}]{key}";
+
+            if (translations.TryGetValue(fullKey, out string? translated) && !string.IsNullOrEmpty(translated))
+            {
+                int valStart = eqInRaw + 1;
+                while (valStart < rawLine.Length && rawLine[valStart] is ' ' or '\t')
+                {
+                    valStart++;
+                }
+
+                lines[i] = $"{rawLine[..valStart]}{translated}";
+                modified = true;
+            }
+        }
+
+        return modified ? string.Join(newline, lines) : originalContent;
+    }
 }
 
-public sealed class PlainTextContentParser : IInnerContentParser
+public sealed class PlainTextContentParser : IInnerContentParser, IInnerContentReconstructor
 {
     public InnerTextFormat Format => InnerTextFormat.PlainText;
 
@@ -655,5 +1097,31 @@ public sealed class PlainTextContentParser : IInnerContentParser
         }
 
         return results;
+    }
+
+    public string Reconstruct(
+        string originalContent,
+        IReadOnlyDictionary<string, string> translations)
+    {
+        if (string.IsNullOrEmpty(originalContent) || translations.Count == 0)
+        {
+            return originalContent;
+        }
+
+        string newline = originalContent.Contains("\r\n", StringComparison.Ordinal) ? "\r\n" : "\n";
+        string[] lines = originalContent.Replace("\r\n", "\n", StringComparison.Ordinal).Split('\n');
+        bool modified = false;
+
+        for (int i = 0; i < lines.Length; i++)
+        {
+            if (translations.TryGetValue($"line:{i}", out string? translated) &&
+                !string.IsNullOrEmpty(translated))
+            {
+                lines[i] = translated;
+                modified = true;
+            }
+        }
+
+        return modified ? string.Join(newline, lines) : originalContent;
     }
 }

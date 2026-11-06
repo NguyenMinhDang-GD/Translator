@@ -80,6 +80,8 @@ public sealed class TwoPhaseScanCoordinator
 
     public FullTextSearchIndex SearchIndex { get; } = new();
 
+    public void InvalidateCache() => _contentCache.Clear();
+
     public async Task<(IGameEngineAdapter Adapter, GameProfile Profile)?> DetectGameAsync(
         string folderPath,
         CancellationToken cancellationToken = default)
