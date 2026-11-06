@@ -1,9 +1,12 @@
 using System.Runtime.InteropServices;
 using Avalonia;
+using Translator.Core.Backup;
 using Translator.Core.Exporting;
 using Translator.Core.Indexing;
 using Translator.Core.Models;
+using Translator.Core.Patching;
 using Translator.Engines.Unity;
+using Translator.Engines.Unity.Patching;
 
 namespace Translator.Desktop;
 
@@ -15,7 +18,10 @@ internal static class Program
     [STAThread]
     public static int Main(string[] args)
     {
-        if (args.Length >= 2 && args[0].Equals("--cli-scan", StringComparison.OrdinalIgnoreCase))
+        if (args.Length >= 2 &&
+            (args[0].Equals("--cli-scan", StringComparison.OrdinalIgnoreCase) ||
+             args[0].Equals("--patch", StringComparison.OrdinalIgnoreCase) ||
+             args[0].Equals("--restore", StringComparison.OrdinalIgnoreCase)))
         {
             if (OperatingSystem.IsWindows())
             {
@@ -37,22 +43,45 @@ internal static class Program
     private static async Task<int> RunHeadlessCliAsync(string[] args)
     {
         Console.OutputEncoding = System.Text.Encoding.UTF8;
-        string gamePath = args[1];
+        string? gamePath = null;
         string? extractOutDir = null;
+        string? patchSourcePath = null;
+        bool restoreOriginal = false;
         SourceLanguageFilter langFilter = SourceLanguageFilter.All;
 
-        for (int i = 2; i + 1 < args.Length; i++)
+        for (int i = 0; i < args.Length; i++)
         {
-            if (args[i].Equals("--extract", StringComparison.OrdinalIgnoreCase))
+            string arg = args[i];
+            if (arg.Equals("--cli-scan", StringComparison.OrdinalIgnoreCase) && i + 1 < args.Length)
             {
-                extractOutDir = args[i + 1];
-                i++;
+                gamePath = args[++i];
             }
-            else if (args[i].Equals("--lang", StringComparison.OrdinalIgnoreCase))
+            else if (arg.Equals("--game", StringComparison.OrdinalIgnoreCase) && i + 1 < args.Length)
             {
-                langFilter = ParseCliLanguage(args[i + 1]);
-                i++;
+                gamePath = args[++i];
             }
+            else if (arg.Equals("--extract", StringComparison.OrdinalIgnoreCase) && i + 1 < args.Length)
+            {
+                extractOutDir = args[++i];
+            }
+            else if (arg.Equals("--patch", StringComparison.OrdinalIgnoreCase) && i + 1 < args.Length)
+            {
+                patchSourcePath = args[++i];
+            }
+            else if (arg.Equals("--restore", StringComparison.OrdinalIgnoreCase))
+            {
+                restoreOriginal = true;
+            }
+            else if (arg.Equals("--lang", StringComparison.OrdinalIgnoreCase) && i + 1 < args.Length)
+            {
+                langFilter = ParseCliLanguage(args[++i]);
+            }
+        }
+
+        if (string.IsNullOrWhiteSpace(gamePath))
+        {
+            Console.Error.WriteLine("[ERROR] Thiếu đường dẫn thư mục Game (--game hoặc --cli-scan).");
+            return 1;
         }
 
         using var unityAdapter = new UnityEngineAdapter();
@@ -67,6 +96,44 @@ internal static class Program
 
         (var adapter, GameProfile profile) = detected.Value;
         Console.WriteLine($"[DETECTED] {profile.GameName} | {profile.EngineName} {profile.EngineVersion} | {profile.ScriptingBackend}");
+
+        var backupVault = new BackupVaultService();
+
+        if (restoreOriginal)
+        {
+            RestoreSummary restoreResult = await backupVault.RestoreOriginalAsync(profile);
+            foreach (string err in restoreResult.Errors)
+            {
+                Console.Error.WriteLine($"  ! [RESTORE ERROR] {err}");
+            }
+
+            Console.WriteLine($"[RESTORED] Đã khôi phục nguyên trạng {restoreResult.RestoredFileCount} file gốc ({restoreResult.TotalBytesRestored:N0} bytes) từ .translator_backup/.");
+            return restoreResult.Errors.Count > 0 && restoreResult.RestoredFileCount == 0 ? 1 : 0;
+        }
+
+        if (!string.IsNullOrWhiteSpace(patchSourcePath))
+        {
+            var loader = new TranslationPackageLoader();
+            IReadOnlyList<PatchPayload> payloads = Directory.Exists(patchSourcePath)
+                ? await loader.LoadFromDirectoryAsync(patchSourcePath)
+                : await loader.LoadFromFileAsync(patchSourcePath, fallbackProfile: profile);
+
+            var patcher = new UnityPatcher();
+            PatchSummary patchResult = await patcher.PatchAsync(profile, payloads, backupVault);
+
+            foreach (string warn in patchResult.Warnings)
+            {
+                Console.WriteLine($"  ! [PATCH WARN] {warn}");
+            }
+
+            foreach (string err in patchResult.Errors)
+            {
+                Console.Error.WriteLine($"  ! [PATCH ERROR] {err}");
+            }
+
+            Console.WriteLine($"[PATCHED] Đã vá {patchResult.AppliedEntryCount} câu dịch vào {patchResult.PatchedContainerCount} file tài nguyên.");
+            return patchResult.Errors.Count > 0 && patchResult.PatchedContainerCount == 0 ? 1 : 0;
+        }
 
         ScanPhase1Result phase1 = await coordinator.RunPhase1DiscoveryAsync(adapter, profile);
         Console.WriteLine($"[PHASE 1] Tìm thấy {phase1.Targets.Count} nguồn text, {phase1.EncryptedWarnings.Count} cảnh báo file mã hóa.");

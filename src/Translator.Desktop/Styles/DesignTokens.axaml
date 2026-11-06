@@ -1,0 +1,170 @@
+<ResourceDictionary xmlns="https://github.com/avaloniaui"
+                    xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml">
+
+    <!-- ========================================================================= -->
+    <!-- LAYER 1: PRIMITIVE TOKENS (Raw Color Palette, Typography & Geometry)      -->
+    <!-- ========================================================================= -->
+    <Color x:Key="Color.Slate.950">#0B1120</Color>
+    <Color x:Key="Color.Slate.925">#0D1526</Color>
+    <Color x:Key="Color.Slate.900">#0F172A</Color>
+    <Color x:Key="Color.Slate.850">#151F32</Color>
+    <Color x:Key="Color.Slate.800">#1E293B</Color>
+    <Color x:Key="Color.Slate.750">#243247</Color>
+    <Color x:Key="Color.Slate.700">#334155</Color>
+    <Color x:Key="Color.Slate.600">#475569</Color>
+    <Color x:Key="Color.Slate.400">#94A3B8</Color>
+    <Color x:Key="Color.Slate.300">#CBD5E1</Color>
+    <Color x:Key="Color.Slate.200">#E2E8F0</Color>
+    <Color x:Key="Color.Slate.50">#F8FAFC</Color>
+
+    <Color x:Key="Color.Blue.600">#2563EB</Color>
+    <Color x:Key="Color.Blue.500">#3B82F6</Color>
+    <Color x:Key="Color.Blue.400">#60A5FA</Color>
+    <Color x:Key="Color.Blue.300">#93C5FD</Color>
+    <Color x:Key="Color.Sky.400">#38BDF8</Color>
+
+    <Color x:Key="Color.Emerald.600">#059669</Color>
+    <Color x:Key="Color.Emerald.500">#10B981</Color>
+    <Color x:Key="Color.Emerald.400">#34D399</Color>
+    <Color x:Key="Color.Emerald.300">#6EE7B7</Color>
+
+    <Color x:Key="Color.Violet.600">#7C3AED</Color>
+    <Color x:Key="Color.Violet.500">#8B5CF6</Color>
+    <Color x:Key="Color.Indigo.600">#4F46E5</Color>
+    <Color x:Key="Color.Indigo.500">#6366F1</Color>
+
+    <Color x:Key="Color.Amber.600">#D97706</Color>
+    <Color x:Key="Color.Amber.500">#F59E0B</Color>
+    <Color x:Key="Color.Amber.300">#FCD34D</Color>
+
+    <Color x:Key="Color.Red.950">#451A1A</Color>
+    <Color x:Key="Color.Red.900">#7F1D1D</Color>
+    <Color x:Key="Color.Red.500">#EF4444</Color>
+    <Color x:Key="Color.Red.400">#F87171</Color>
+    <Color x:Key="Color.Red.300">#FCA5A5</Color>
+
+    <FontFamily x:Key="Font.Sans">Inter, IBM Plex Sans, Segoe UI, sans-serif</FontFamily>
+    <FontFamily x:Key="Font.Mono">JetBrains Mono, Cascadia Mono, Consolas, monospace</FontFamily>
+
+    <CornerRadius x:Key="Radius.Sm">5</CornerRadius>
+    <CornerRadius x:Key="Radius.Md">8</CornerRadius>
+    <CornerRadius x:Key="Radius.Lg">10</CornerRadius>
+
+    <!-- ========================================================================= -->
+    <!-- LAYER 2: SEMANTIC TOKENS (Surfaces, Borders, Text, Accents & Status)      -->
+    <!-- ========================================================================= -->
+    <SolidColorBrush x:Key="Brush.Window.Background" Color="{StaticResource Color.Slate.950}" />
+    <SolidColorBrush x:Key="Brush.Surface.Sidebar" Color="{StaticResource Color.Slate.925}" />
+    <SolidColorBrush x:Key="Brush.Surface.Card" Color="{StaticResource Color.Slate.850}" />
+    <SolidColorBrush x:Key="Brush.Surface.Inset" Color="{StaticResource Color.Slate.950}" />
+    <SolidColorBrush x:Key="Brush.Surface.Elevated" Color="{StaticResource Color.Slate.800}" />
+    <SolidColorBrush x:Key="Brush.Surface.TableHeader" Color="{StaticResource Color.Slate.800}" />
+    <SolidColorBrush x:Key="Brush.Surface.Hover" Color="{StaticResource Color.Slate.750}" />
+    <SolidColorBrush x:Key="Brush.Surface.NavActive" Color="#1A2942" />
+    <SolidColorBrush x:Key="Brush.Surface.NavHover" Color="#142035" />
+
+    <SolidColorBrush x:Key="Brush.Border.Subtle" Color="#26354D" />
+    <SolidColorBrush x:Key="Brush.Border.Default" Color="{StaticResource Color.Slate.700}" />
+    <SolidColorBrush x:Key="Brush.Border.Strong" Color="{StaticResource Color.Slate.600}" />
+    <SolidColorBrush x:Key="Brush.Border.Focus" Color="{StaticResource Color.Sky.400}" />
+
+    <!-- WCAG AA Compliant Text Hierarchy (>= 4.5:1 normal text contrast on dark) -->
+    <SolidColorBrush x:Key="Brush.Text.Primary" Color="{StaticResource Color.Slate.50}" />
+    <SolidColorBrush x:Key="Brush.Text.Secondary" Color="{StaticResource Color.Slate.200}" />
+    <SolidColorBrush x:Key="Brush.Text.Muted" Color="{StaticResource Color.Slate.400}" />
+    <SolidColorBrush x:Key="Brush.Text.Accent" Color="{StaticResource Color.Blue.300}" />
+    <SolidColorBrush x:Key="Brush.Text.Highlight" Color="{StaticResource Color.Sky.400}" />
+
+    <!-- Action & CTA Semantic Brushes -->
+    <SolidColorBrush x:Key="Brush.Accent.Brand" Color="{StaticResource Color.Blue.600}" />
+    <SolidColorBrush x:Key="Brush.Accent.Primary" Color="{StaticResource Color.Blue.500}" />
+    <SolidColorBrush x:Key="Brush.Accent.PrimaryHover" Color="{StaticResource Color.Blue.600}" />
+
+    <SolidColorBrush x:Key="Brush.Accent.Extract" Color="{StaticResource Color.Emerald.500}" />
+    <SolidColorBrush x:Key="Brush.Accent.ExtractHover" Color="{StaticResource Color.Emerald.600}" />
+
+    <SolidColorBrush x:Key="Brush.Accent.Patch" Color="{StaticResource Color.Violet.500}" />
+    <SolidColorBrush x:Key="Brush.Accent.PatchHover" Color="{StaticResource Color.Violet.600}" />
+
+    <SolidColorBrush x:Key="Brush.Accent.PatchSecondary" Color="{StaticResource Color.Indigo.500}" />
+    <SolidColorBrush x:Key="Brush.Accent.PatchSecondaryHover" Color="{StaticResource Color.Indigo.600}" />
+
+    <!-- Status & Vault Brushes -->
+    <SolidColorBrush x:Key="Brush.Status.VaultBg" Color="#0D2821" />
+    <SolidColorBrush x:Key="Brush.Status.VaultBorder" Color="#115E59" />
+    <SolidColorBrush x:Key="Brush.Status.VaultText" Color="{StaticResource Color.Emerald.300}" />
+
+    <SolidColorBrush x:Key="Brush.Status.PatchedBg" Color="#0D2821" />
+    <SolidColorBrush x:Key="Brush.Status.PatchedBorder" Color="#10B981" />
+    <SolidColorBrush x:Key="Brush.Status.PatchedText" Color="#6EE7B7" />
+
+    <SolidColorBrush x:Key="Brush.Status.PartialBg" Color="#3B2506" />
+    <SolidColorBrush x:Key="Brush.Status.PartialBorder" Color="#F59E0B" />
+    <SolidColorBrush x:Key="Brush.Status.PartialText" Color="#FCD34D" />
+
+    <SolidColorBrush x:Key="Brush.Status.UnpatchedBg" Color="#1E293B" />
+    <SolidColorBrush x:Key="Brush.Status.UnpatchedBorder" Color="#475569" />
+    <SolidColorBrush x:Key="Brush.Status.UnpatchedText" Color="#CBD5E1" />
+
+    <SolidColorBrush x:Key="Brush.Status.Warning" Color="{StaticResource Color.Amber.600}" />
+    <SolidColorBrush x:Key="Brush.Status.WarningHover" Color="#B45309" />
+    <SolidColorBrush x:Key="Brush.Status.WarningText" Color="{StaticResource Color.Amber.300}" />
+
+    <SolidColorBrush x:Key="Brush.Status.DangerBg" Color="{StaticResource Color.Red.950}" />
+    <SolidColorBrush x:Key="Brush.Status.DangerBorder" Color="{StaticResource Color.Red.900}" />
+    <SolidColorBrush x:Key="Brush.Status.DangerText" Color="{StaticResource Color.Red.300}" />
+    <SolidColorBrush x:Key="Brush.Status.NoiseText" Color="{StaticResource Color.Red.400}" />
+
+    <!-- ========================================================================= -->
+    <!-- LAYER 3: VECTOR SVG ICONS (Consistent 24x24 Lucide/Phosphor Geometry Set) -->
+    <!-- ========================================================================= -->
+    <!-- Brand / Translate Globe Icon -->
+    <StreamGeometry x:Key="Icon.Translate">M5 8l6 6M4 14l6-6 2-3M2 5h12M7 2h1M22 22l-5-10-5 10M14 18h6</StreamGeometry>
+    <!-- Radar / Folder Scan (Nav 1: Tìm Text) -->
+    <StreamGeometry x:Key="Icon.RadarScan">M21 12a9 9 0 1 1-6.219-8.56M12 12L19 5M12 12a3 3 0 1 0 0-6 3 3 0 0 0 0 6z</StreamGeometry>
+    <!-- List Search / Preview (Nav 2: Danh Sách & Xem Trước) -->
+    <StreamGeometry x:Key="Icon.ListSearch">M11 12H3M16 6H3M16 18H3M18 15a3 3 0 1 0 0-6 3 3 0 0 0 0 6zM21 16l-1.9-1.9</StreamGeometry>
+    <!-- Wrench / Patch (Nav 3: Chọn File Để Vá) -->
+    <StreamGeometry x:Key="Icon.WrenchPatch">M14.7 6.3a1 1 0 0 0 0 1.4l1.6 1.6a1 1 0 0 0 1.4 0l3.77-3.77a6 6 0 0 1-7.94 7.94l-6.91 6.91a2.12 2.12 0 0 1-3-3l6.91-6.91a6 6 0 0 1 7.94-7.94l-3.76 3.76z</StreamGeometry>
+    <!-- Folder Open -->
+    <StreamGeometry x:Key="Icon.FolderOpen">M5 19a2 2 0 0 1-2-2V7a2 2 0 0 1 2-2h4l2 2h4a2 2 0 0 1 2 2v1M5 19h14a2 2 0 0 0 1.84-1.22l2.11-5A2 2 0 0 0 21.11 10H7.89a2 2 0 0 0-1.84 1.22L4 16.5</StreamGeometry>
+    <!-- Refresh / Rescan -->
+    <StreamGeometry x:Key="Icon.Refresh">M21 12a9 9 0 0 0-9-9 9.75 9.75 0 0 0-6.74 2.74L3 8M3 3v5h5M3 12a9 9 0 0 0 9 9 9.75 9.75 0 0 0 6.74-2.74L21 16M16 16h5v5</StreamGeometry>
+    <!-- Stop / Cancel -->
+    <StreamGeometry x:Key="Icon.Stop">M12 2a10 10 0 1 0 10 10A10 10 0 0 0 12 2zm3 13H9V9h6z</StreamGeometry>
+    <!-- Shield Check (Backup Vault) -->
+    <StreamGeometry x:Key="Icon.ShieldCheck">M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10zM9 12l2 2 4-4</StreamGeometry>
+    <!-- Rotate Counter-Clockwise (Restore Original) -->
+    <StreamGeometry x:Key="Icon.RotateCcw">M3 12a9 9 0 1 0 9-9 9.75 9.75 0 0 0-6.74 2.74L3 8M3 3v5h5</StreamGeometry>
+    <!-- Shield Alert (Encrypted Warning) -->
+    <StreamGeometry x:Key="Icon.ShieldAlert">M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10zM12 8v4M12 16h.01</StreamGeometry>
+    <!-- Magnifying Glass (Search) -->
+    <StreamGeometry x:Key="Icon.Search">M11 19a8 8 0 1 0 0-16 8 8 0 0 0 0 16zM21 21l-4.35-4.35</StreamGeometry>
+    <!-- Clear / X -->
+    <StreamGeometry x:Key="Icon.Close">M18 6L6 18M6 6l12 12</StreamGeometry>
+    <!-- Globe (Language Filter) -->
+    <StreamGeometry x:Key="Icon.Globe">M12 22a10 10 0 1 0 0-20 10 10 0 0 0 0 20zM2 12h20M12 2a15.3 15.3 0 0 1 4 10 15.3 15.3 0 0 1-4 10 15.3 15.3 0 0 1-4-10 15.3 15.3 0 0 1 4-10z</StreamGeometry>
+    <!-- Database / Layers (Discovered Sources) -->
+    <StreamGeometry x:Key="Icon.Layers">M12 2L2 7l10 5 10-5-10-5zM2 17l10 5 10-5M2 12l10 5 10-5</StreamGeometry>
+    <!-- Check Square (Select All) -->
+    <StreamGeometry x:Key="Icon.CheckSquare">M9 11l3 3L22 4M21 12v7a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h11</StreamGeometry>
+    <!-- Table / List (Extracted Sentences Tab) -->
+    <StreamGeometry x:Key="Icon.Table">M3 5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2v14a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V5zm0 5h18M9 10v11</StreamGeometry>
+    <!-- Code (Raw File Content Tab) -->
+    <StreamGeometry x:Key="Icon.Code">M16 18l6-6-6-6M8 6l-6 6 6 6</StreamGeometry>
+    <!-- Download / Extract CTA -->
+    <StreamGeometry x:Key="Icon.Download">M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4M7 10l5 5 5-5M12 15V3</StreamGeometry>
+    <!-- Package Check (Patch Folder CTA) -->
+    <StreamGeometry x:Key="Icon.PackageCheck">M16.5 9.4l-9-5.19M21 16V8a2 2 0 0 0-1-1.73l-7-4a2 2 0 0 0-2 0l-7 4A2 2 0 0 0 3 8v8a2 2 0 0 0 1 1.73l7 4a2 2 0 0 0 2 0l7-4A2 2 0 0 0 21 16zM3.27 6.96L12 12.01l8.73-5.05M12 22.08V12</StreamGeometry>
+    <!-- File Check (Patch Single File CTA) -->
+    <StreamGeometry x:Key="Icon.FileCheck">M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8zM14 2v6h6M9 15l2 2 4-4</StreamGeometry>
+    <!-- Check Circle (Patched Status) -->
+    <StreamGeometry x:Key="Icon.CheckCircle">M22 11.08V12a10 10 0 1 1-5.93-9.14M22 4L12 14.01l-3-3</StreamGeometry>
+    <!-- Clock Pending (Unpatched Status) -->
+    <StreamGeometry x:Key="Icon.ClockPending">M12 22a10 10 0 1 0 0-20 10 10 0 0 0 0 20zM12 6v6l4 2</StreamGeometry>
+    <!-- Arrow Right -->
+    <StreamGeometry x:Key="Icon.ArrowRight">M5 12h14M12 5l7 7-7 7</StreamGeometry>
+    <!-- Trash / Clear Queue -->
+    <StreamGeometry x:Key="Icon.Trash">M3 6h18M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2</StreamGeometry>
+
+</ResourceDictionary>

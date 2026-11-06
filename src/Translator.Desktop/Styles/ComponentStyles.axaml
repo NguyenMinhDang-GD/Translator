@@ -1,0 +1,271 @@
+<Styles xmlns="https://github.com/avaloniaui"
+        xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml">
+
+    <!-- ========================================================================= -->
+    <!-- GLOBAL TYPOGRAPHY & INTERACTIVE AFFORDANCE                                -->
+    <!-- ========================================================================= -->
+    <Style Selector="Window">
+        <Setter Property="Background" Value="{StaticResource Brush.Window.Background}" />
+        <Setter Property="Foreground" Value="{StaticResource Brush.Text.Primary}" />
+        <Setter Property="FontFamily" Value="{StaticResource Font.Sans}" />
+    </Style>
+
+    <Style Selector="Button, CheckBox, ComboBox, ToggleSwitch, TabItem">
+        <Setter Property="Cursor" Value="Hand" />
+    </Style>
+
+    <!-- ========================================================================= -->
+    <!-- CARD & SURFACE CONTAINERS                                                 -->
+    <!-- ========================================================================= -->
+    <Style Selector="Border.card">
+        <Setter Property="Background" Value="{StaticResource Brush.Surface.Card}" />
+        <Setter Property="BorderBrush" Value="{StaticResource Brush.Border.Subtle}" />
+        <Setter Property="BorderThickness" Value="1" />
+        <Setter Property="CornerRadius" Value="{StaticResource Radius.Lg}" />
+        <Setter Property="BoxShadow" Value="0 4 14 0 #26000000" />
+    </Style>
+
+    <Style Selector="Border.surface-inset">
+        <Setter Property="Background" Value="{StaticResource Brush.Surface.Inset}" />
+        <Setter Property="BorderBrush" Value="{StaticResource Brush.Border.Subtle}" />
+        <Setter Property="BorderThickness" Value="1" />
+        <Setter Property="CornerRadius" Value="{StaticResource Radius.Md}" />
+    </Style>
+
+    <!-- ========================================================================= -->
+    <!-- BUTTON VARIANTS (Stable Bounds, Smooth 150ms Transitions, High Contrast)  -->
+    <!-- ========================================================================= -->
+    <Style Selector="Button">
+        <Setter Property="CornerRadius" Value="6" />
+        <Setter Property="FontWeight" Value="SemiBold" />
+        <Setter Property="FontSize" Value="12.5" />
+        <Setter Property="Padding" Value="12,7" />
+        <Setter Property="BorderThickness" Value="1" />
+        <Setter Property="BorderBrush" Value="{StaticResource Brush.Border.Default}" />
+        <Setter Property="Background" Value="{StaticResource Brush.Surface.Elevated}" />
+        <Setter Property="Foreground" Value="{StaticResource Brush.Text.Primary}" />
+        <Setter Property="Transitions">
+            <Transitions>
+                <BrushTransition Property="Background" Duration="0:0:0.15" />
+                <BrushTransition Property="BorderBrush" Duration="0:0:0.15" />
+                <DoubleTransition Property="Opacity" Duration="0:0:0.15" />
+            </Transitions>
+        </Setter>
+    </Style>
+
+    <Style Selector="Button:pointerover /template/ ContentPresenter#PART_ContentPresenter">
+        <Setter Property="Background" Value="{StaticResource Brush.Surface.Hover}" />
+        <Setter Property="BorderBrush" Value="{StaticResource Brush.Border.Strong}" />
+        <Setter Property="Foreground" Value="{StaticResource Brush.Text.Primary}" />
+    </Style>
+
+    <Style Selector="Button:disabled">
+        <Setter Property="Opacity" Value="0.45" />
+    </Style>
+
+    <!-- ========================================================================= -->
+    <!-- LEFT SIDEBAR NAVIGATION BUTTONS (20% Navigation Pane)                     -->
+    <!-- ========================================================================= -->
+    <Style Selector="Button.nav-item">
+        <Setter Property="HorizontalAlignment" Value="Stretch" />
+        <Setter Property="HorizontalContentAlignment" Value="Stretch" />
+        <Setter Property="Padding" Value="12,11" />
+        <Setter Property="CornerRadius" Value="8" />
+        <Setter Property="Background" Value="Transparent" />
+        <Setter Property="BorderBrush" Value="Transparent" />
+        <Setter Property="BorderThickness" Value="1" />
+        <Setter Property="Foreground" Value="{StaticResource Brush.Text.Secondary}" />
+    </Style>
+    <Style Selector="Button.nav-item:pointerover /template/ ContentPresenter#PART_ContentPresenter">
+        <Setter Property="Background" Value="{StaticResource Brush.Surface.NavHover}" />
+        <Setter Property="BorderBrush" Value="{StaticResource Brush.Border.Subtle}" />
+        <Setter Property="Foreground" Value="{StaticResource Brush.Text.Primary}" />
+    </Style>
+    <Style Selector="Button.nav-item.active">
+        <Setter Property="Background" Value="{StaticResource Brush.Surface.NavActive}" />
+        <Setter Property="BorderBrush" Value="#2563EB" />
+        <Setter Property="Foreground" Value="{StaticResource Brush.Text.Primary}" />
+    </Style>
+    <Style Selector="Button.nav-item.active:pointerover /template/ ContentPresenter#PART_ContentPresenter">
+        <Setter Property="Background" Value="#1E3150" />
+        <Setter Property="BorderBrush" Value="#38BDF8" />
+        <Setter Property="Foreground" Value="{StaticResource Brush.Text.Primary}" />
+    </Style>
+
+    <!-- ========================================================================= -->
+    <!-- SUB-SCREEN SEGMENTED SWITCHER BUTTONS (Page 3 Screen 1 <-> Screen 2)      -->
+    <!-- ========================================================================= -->
+    <Style Selector="Button.subnav-tab">
+        <Setter Property="Padding" Value="14,8" />
+        <Setter Property="CornerRadius" Value="7" />
+        <Setter Property="Background" Value="Transparent" />
+        <Setter Property="BorderBrush" Value="Transparent" />
+        <Setter Property="BorderThickness" Value="1" />
+        <Setter Property="Foreground" Value="{StaticResource Brush.Text.Muted}" />
+    </Style>
+    <Style Selector="Button.subnav-tab:pointerover /template/ ContentPresenter#PART_ContentPresenter">
+        <Setter Property="Background" Value="{StaticResource Brush.Surface.Hover}" />
+        <Setter Property="BorderBrush" Value="{StaticResource Brush.Border.Subtle}" />
+        <Setter Property="Foreground" Value="{StaticResource Brush.Text.Primary}" />
+    </Style>
+    <Style Selector="Button.subnav-tab.active">
+        <Setter Property="Background" Value="{StaticResource Brush.Accent.Patch}" />
+        <Setter Property="BorderBrush" Value="#A78BFA" />
+        <Setter Property="Foreground" Value="White" />
+        <Setter Property="FontWeight" Value="Bold" />
+    </Style>
+    <Style Selector="Button.subnav-tab.active:pointerover /template/ ContentPresenter#PART_ContentPresenter">
+        <Setter Property="Background" Value="{StaticResource Brush.Accent.PatchHover}" />
+        <Setter Property="BorderBrush" Value="#C4B5FD" />
+        <Setter Property="Foreground" Value="White" />
+    </Style>
+
+    <!-- Primary Action Button (Blue) -->
+    <Style Selector="Button.btn-primary">
+        <Setter Property="Background" Value="{StaticResource Brush.Accent.Primary}" />
+        <Setter Property="BorderBrush" Value="#60A5FA" />
+        <Setter Property="Foreground" Value="White" />
+    </Style>
+    <Style Selector="Button.btn-primary:pointerover /template/ ContentPresenter#PART_ContentPresenter">
+        <Setter Property="Background" Value="{StaticResource Brush.Accent.PrimaryHover}" />
+        <Setter Property="BorderBrush" Value="#93C5FD" />
+        <Setter Property="Foreground" Value="White" />
+    </Style>
+
+    <!-- Extract Action Button (Emerald Green CTA) -->
+    <Style Selector="Button.btn-extract">
+        <Setter Property="Background" Value="{StaticResource Brush.Accent.Extract}" />
+        <Setter Property="BorderBrush" Value="#34D399" />
+        <Setter Property="Foreground" Value="White" />
+        <Setter Property="FontWeight" Value="Bold" />
+    </Style>
+    <Style Selector="Button.btn-extract:pointerover /template/ ContentPresenter#PART_ContentPresenter">
+        <Setter Property="Background" Value="{StaticResource Brush.Accent.ExtractHover}" />
+        <Setter Property="BorderBrush" Value="#6EE7B7" />
+        <Setter Property="Foreground" Value="White" />
+    </Style>
+
+    <!-- Patch Folder Action Button (Violet CTA) -->
+    <Style Selector="Button.btn-patch">
+        <Setter Property="Background" Value="{StaticResource Brush.Accent.Patch}" />
+        <Setter Property="BorderBrush" Value="#A78BFA" />
+        <Setter Property="Foreground" Value="White" />
+        <Setter Property="FontWeight" Value="Bold" />
+    </Style>
+    <Style Selector="Button.btn-patch:pointerover /template/ ContentPresenter#PART_ContentPresenter">
+        <Setter Property="Background" Value="{StaticResource Brush.Accent.PatchHover}" />
+        <Setter Property="BorderBrush" Value="#C4B5FD" />
+        <Setter Property="Foreground" Value="White" />
+    </Style>
+
+    <!-- Patch Single File Action Button (Indigo CTA) -->
+    <Style Selector="Button.btn-patch-secondary">
+        <Setter Property="Background" Value="{StaticResource Brush.Accent.PatchSecondary}" />
+        <Setter Property="BorderBrush" Value="#818CF8" />
+        <Setter Property="Foreground" Value="White" />
+    </Style>
+    <Style Selector="Button.btn-patch-secondary:pointerover /template/ ContentPresenter#PART_ContentPresenter">
+        <Setter Property="Background" Value="{StaticResource Brush.Accent.PatchSecondaryHover}" />
+        <Setter Property="BorderBrush" Value="#A5B4FC" />
+        <Setter Property="Foreground" Value="White" />
+    </Style>
+
+    <!-- Restore Backup Action Button (Amber Warning CTA) -->
+    <Style Selector="Button.btn-warning">
+        <Setter Property="Background" Value="{StaticResource Brush.Status.Warning}" />
+        <Setter Property="BorderBrush" Value="#F59E0B" />
+        <Setter Property="Foreground" Value="White" />
+    </Style>
+    <Style Selector="Button.btn-warning:pointerover /template/ ContentPresenter#PART_ContentPresenter">
+        <Setter Property="Background" Value="{StaticResource Brush.Status.WarningHover}" />
+        <Setter Property="BorderBrush" Value="#FBBF24" />
+        <Setter Property="Foreground" Value="White" />
+    </Style>
+
+    <!-- Encrypted Alert Badge Button (Red Danger) -->
+    <Style Selector="Button.btn-danger-badge">
+        <Setter Property="Background" Value="{StaticResource Brush.Status.DangerBg}" />
+        <Setter Property="BorderBrush" Value="{StaticResource Brush.Status.DangerBorder}" />
+        <Setter Property="Foreground" Value="{StaticResource Brush.Status.DangerText}" />
+        <Setter Property="Padding" Value="10,4" />
+        <Setter Property="FontSize" Value="12" />
+    </Style>
+    <Style Selector="Button.btn-danger-badge:pointerover /template/ ContentPresenter#PART_ContentPresenter">
+        <Setter Property="Background" Value="#7F1D1D" />
+        <Setter Property="BorderBrush" Value="#EF4444" />
+        <Setter Property="Foreground" Value="#FEE2E2" />
+    </Style>
+
+    <!-- Compact Toolbar Button -->
+    <Style Selector="Button.btn-compact">
+        <Setter Property="Padding" Value="9,5" />
+        <Setter Property="FontSize" Value="12" />
+    </Style>
+
+    <!-- ========================================================================= -->
+    <!-- INPUTS, LISTBOX & GRIDSPLITTER                                            -->
+    <!-- ========================================================================= -->
+    <Style Selector="TextBox">
+        <Setter Property="CornerRadius" Value="6" />
+        <Setter Property="Background" Value="{StaticResource Brush.Surface.Inset}" />
+        <Setter Property="BorderBrush" Value="{StaticResource Brush.Border.Default}" />
+        <Setter Property="Foreground" Value="{StaticResource Brush.Text.Primary}" />
+    </Style>
+
+    <Style Selector="ComboBox">
+        <Setter Property="CornerRadius" Value="6" />
+        <Setter Property="Background" Value="{StaticResource Brush.Surface.Inset}" />
+        <Setter Property="BorderBrush" Value="{StaticResource Brush.Border.Default}" />
+    </Style>
+
+    <Style Selector="ListBox">
+        <Setter Property="Background" Value="{StaticResource Brush.Surface.Inset}" />
+        <Setter Property="BorderBrush" Value="{StaticResource Brush.Border.Subtle}" />
+        <Setter Property="BorderThickness" Value="1" />
+        <Setter Property="CornerRadius" Value="{StaticResource Radius.Md}" />
+    </Style>
+
+    <Style Selector="ListBoxItem">
+        <Setter Property="Padding" Value="8,6" />
+        <Setter Property="CornerRadius" Value="5" />
+        <Setter Property="Margin" Value="3,1" />
+        <Setter Property="Cursor" Value="Hand" />
+    </Style>
+
+    <Style Selector="TabItem">
+        <Setter Property="FontSize" Value="13" />
+        <Setter Property="FontWeight" Value="SemiBold" />
+        <Setter Property="Padding" Value="12,6" />
+        <Setter Property="MinHeight" Value="34" />
+    </Style>
+
+    <!-- Resizable Column Splitter with Visible Grip Affordance -->
+    <Style Selector="GridSplitter.workspace-splitter">
+        <Setter Property="Background" Value="Transparent" />
+        <Setter Property="Cursor" Value="SizeWestEast" />
+        <Setter Property="Template">
+            <ControlTemplate>
+                <Grid Background="Transparent">
+                    <Border Width="4"
+                            Height="48"
+                            CornerRadius="2"
+                            Background="{StaticResource Brush.Border.Default}"
+                            HorizontalAlignment="Center"
+                            VerticalAlignment="Center">
+                        <Border.Transitions>
+                            <Transitions>
+                                <BrushTransition Property="Background" Duration="0:0:0.15" />
+                                <DoubleTransition Property="Height" Duration="0:0:0.15" />
+                            </Transitions>
+                        </Border.Transitions>
+                    </Border>
+                </Grid>
+            </ControlTemplate>
+        </Setter>
+    </Style>
+    <Style Selector="GridSplitter.workspace-splitter:pointerover /template/ Border">
+        <Setter Property="Background" Value="{StaticResource Brush.Border.Focus}" />
+        <Setter Property="Height" Value="72" />
+    </Style>
+
+</Styles>
