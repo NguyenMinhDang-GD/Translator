@@ -78,9 +78,16 @@ dotnet run --project src/Translator.Desktop
 ```
 
 ### 3. Sử dụng qua Dòng lệnh (Headless CLI)
-Ngoài giao diện đồ họa, bạn có thể tích hợp vào script tự động bằng tham số `--cli-scan`:
+Ngoài giao diện đồ họa, bạn có thể tích hợp vào script tự động bằng các tham số CLI:
 ```powershell
+# Quét và bóc tách văn bản ra thư mục
 dotnet run --project src/Translator.Desktop -- --cli-scan "D:\Games\MyUnityGame" --extract "D:\Output\ExtractedText"
+
+# Vá (Patch) bản dịch từ cả thư mục hoặc từ 1 file lẻ (.csv / .translator.json / Raw)
+dotnet run --project src/Translator.Desktop -- --patch "D:\Output\ExtractedText" --game "D:\Games\MyUnityGame"
+
+# Khôi phục game về nguyên trạng gốc 1 chạm từ kho .translator_backup/
+dotnet run --project src/Translator.Desktop -- --restore --game "D:\Games\MyUnityGame"
 ```
 
 ### 4. Đóng gói ra file `.exe` độc lập (Windows x64)
@@ -99,9 +106,9 @@ Dự án được phát triển theo 5 giai đoạn chiến lược để tiến
 - [x] Nhận diện Magic Bytes, lọc rác thông minh, quét 2 pha kèm Full-Text Search.
 - [x] Xuất bảng dịch chuẩn `.translator.json` / `.csv` lưu sẵn định vị `EntryLocation` và xuất `Raw`.
 
-### Giai đoạn 2: Bộ Đóng Gói Ngược & Kho Sao Lưu Nguyên Tử (Atomic Replacer & Backup Vault)
-- [ ] **Kho sao lưu bất biến (`.translator_backup/`):** Tự động sao lưu và đối chiếu mã băm `SHA-256` của file gốc trước khi can thiệp; khôi phục game về nguyên trạng ban đầu chỉ với 1 nút bấm (*Restore Original*).
-- [ ] **Atomic Patcher:** Nạp lại file `.translator.json` / `.csv` (hoặc file `Raw`) đã dịch và ghi đè an toàn qua file tạm vào `.assets`, nén lại `AssetBundle` (`LZ4`), cập nhật cây `MonoBehaviour`, vá chỉ thị `ldstr` trong `.dll` và tái cấu trúc bảng offset của `global-metadata.dat`.
+### Giai đoạn 2: Bộ Đóng Gói Ngược & Kho Sao Lưu Nguyên Tử (Atomic Replacer & Backup Vault) *(Đã hoàn thành)*
+- [x] **Kho sao lưu bất biến (`.translator_backup/`):** Tự động sao lưu và đối chiếu mã băm `SHA-256` của file gốc trước khi can thiệp; khôi phục game về nguyên trạng ban đầu chỉ với 1 nút bấm (*Restore Original*) và giữ nguyên kho backup.
+- [x] **Atomic Patcher:** Nạp lại cả thư mục dự án hoặc file lẻ `.translator.json` / `.csv` (hoặc file `Raw`) đã dịch và ghi đè an toàn qua file tạm vào `.assets`, nén lại `AssetBundle` (`LZ4`), cập nhật cây `MonoBehaviour`, vá chỉ thị `ldstr` trong `.dll` và tái cấu trúc bảng offset của `global-metadata.dat`.
 
 ### Giai đoạn 3: Tự Động Hóa Việt Hóa Font Chữ (Auto Font Patcher)
 - [ ] Tự động quét và kiểm tra các font chữ trong game có hỗ trợ bộ ký tự tiếng Việt Unicode hay không.
