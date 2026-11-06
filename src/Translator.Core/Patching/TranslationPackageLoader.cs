@@ -388,7 +388,9 @@ public sealed class TranslationPackageLoader : IPatchPackageLoader
             {
                 package.Entries[i] = entry with { TranslatedText = transByKey };
             }
-            else if (byKey.TryGetValue(entry.Location.FieldOrInnerKey, out string? transByLoc) && !string.IsNullOrEmpty(transByLoc))
+            else if (!entry.Location.PathId.HasValue &&
+                     byKey.TryGetValue(entry.Location.FieldOrInnerKey, out string? transByLoc) &&
+                     !string.IsNullOrEmpty(transByLoc))
             {
                 package.Entries[i] = entry with { TranslatedText = transByLoc };
             }

@@ -1497,7 +1497,7 @@ public sealed partial class MainWindowViewModel : ObservableObject, IDisposable
                         }
                     }
 
-                    if (!string.IsNullOrWhiteSpace(tItem.Location.FieldOrInnerKey))
+                    if (!tItem.Location.PathId.HasValue && !string.IsNullOrWhiteSpace(tItem.Location.FieldOrInnerKey))
                     {
                         if (hasTrans || !translationByKey.ContainsKey(tItem.Location.FieldOrInnerKey))
                         {
@@ -1543,7 +1543,8 @@ public sealed partial class MainWindowViewModel : ObservableObject, IDisposable
                     {
                         matchedTrans = byKey;
                     }
-                    else if (!string.IsNullOrWhiteSpace(entry.Location.FieldOrInnerKey) &&
+                    else if (!entry.Location.PathId.HasValue &&
+                             !string.IsNullOrWhiteSpace(entry.Location.FieldOrInnerKey) &&
                              translationByKey.TryGetValue(entry.Location.FieldOrInnerKey, out TextEntry? byLoc))
                     {
                         matchedTrans = byLoc;
