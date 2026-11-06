@@ -35,6 +35,7 @@ public sealed partial class MainWindowViewModel : ObservableObject, IDisposable
     private GameProfile? _activeProfile;
     private ExtractedTargetContent? _activePreviewContent;
     private long _lastPhase2UiRefreshTicks;
+    private int _patchComparisonLoadVersion;
 
     public MainWindowViewModel()
     {
@@ -1430,8 +1431,13 @@ public sealed partial class MainWindowViewModel : ObservableObject, IDisposable
                 x => string.Equals(x.TargetKey, keyToRestore, StringComparison.OrdinalIgnoreCase));
             if (restored is not null)
             {
+                bool wasSameReference = ReferenceEquals(SelectedPatchTarget, restored);
                 SelectedPatchTarget = restored;
-                _ = LoadPatchComparisonForTargetAsync(restored);
+                if (wasSameReference)
+                {
+                    _ = LoadPatchComparisonForTargetAsync(restored);
+                }
+
                 return;
             }
         }
@@ -1441,6 +1447,7 @@ public sealed partial class MainWindowViewModel : ObservableObject, IDisposable
 
     private async Task LoadPatchComparisonForTargetAsync(PatchTargetStatusItemViewModel? targetItem)
     {
+        int loadVersion = Interlocked.Increment(ref _patchComparisonLoadVersion);
         _activePatchTargetAllSentences.Clear();
         PatchComparisonEntries.Clear();
 
@@ -1457,6 +1464,7 @@ public sealed partial class MainWindowViewModel : ObservableObject, IDisposable
 
         try
         {
+            var localSentences = new List<PatchSentenceComparisonItem>();
             PatchPayload? payload = targetItem.MatchedPayload;
             var translationById = new Dictionary<string, TextEntry>(StringComparer.OrdinalIgnoreCase);
             var translationByKey = new Dictionary<string, TextEntry>(StringComparer.OrdinalIgnoreCase);
@@ -1517,7 +1525,7 @@ public sealed partial class MainWindowViewModel : ObservableObject, IDisposable
                         _activeProfile,
                         targetItem.ScannedTarget);
 
-                if (SelectedPatchTarget != targetItem)
+                if (loadVersion != Volatile.Read(ref _patchComparisonLoadVersion) || SelectedPatchTarget != targetItem)
                 {
                     return;
                 }
@@ -1562,7 +1570,7 @@ public sealed partial class MainWindowViewModel : ObservableObject, IDisposable
                         ? "[Đã thay thế bằng nội dung File Raw]"
                         : (matchedTrans?.TranslatedText ?? string.Empty);
 
-                    _activePatchTargetAllSentences.Add(new PatchSentenceComparisonItem(
+                    localSentences.Add(new PatchSentenceComparisonItem(
                         Id: entry.Id,
                         Key: entry.Key,
                         OriginalText: displayOriginal,
@@ -1581,7 +1589,7 @@ public sealed partial class MainWindowViewModel : ObservableObject, IDisposable
                         continue;
                     }
 
-                    _activePatchTargetAllSentences.Insert(insertIdx++, new PatchSentenceComparisonItem(
+                    localSentences.Insert(insertIdx++, new PatchSentenceComparisonItem(
                         Id: unconsumed.Id,
                         Key: unconsumed.Key,
                         OriginalText: unconsumed.OriginalText,
@@ -1597,7 +1605,7 @@ public sealed partial class MainWindowViewModel : ObservableObject, IDisposable
                 {
                     bool hasTranslation = !string.IsNullOrWhiteSpace(tItem.TranslatedText);
 
-                    _activePatchTargetAllSentences.Add(new PatchSentenceComparisonItem(
+                    localSentences.Add(new PatchSentenceComparisonItem(
                         Id: tItem.Id,
                         Key: tItem.Key,
                         OriginalText: tItem.OriginalText,
@@ -1607,6 +1615,14 @@ public sealed partial class MainWindowViewModel : ObservableObject, IDisposable
                         IsAppliedToDisk: targetItem.IsAppliedToDisk));
                 }
             }
+
+            if (loadVersion != Volatile.Read(ref _patchComparisonLoadVersion) || SelectedPatchTarget != targetItem)
+            {
+                return;
+            }
+
+            _activePatchTargetAllSentences.Clear();
+            _activePatchTargetAllSentences.AddRange(localSentences);
 
             int patchedInTarget = _activePatchTargetAllSentences.Count(x => x.IsPatched);
             int unpatchedInTarget = _activePatchTargetAllSentences.Count - patchedInTarget;
