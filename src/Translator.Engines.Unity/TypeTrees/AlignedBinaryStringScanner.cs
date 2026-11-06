@@ -132,6 +132,161 @@ public static class AlignedBinaryStringScanner
         return true;
     }
 
+    public static byte[] BuildBinaryTextAsset(
+        string assetName,
+        ReadOnlySpan<byte> scriptBytes,
+        bool isBigEndian = false,
+        ReadOnlySpan<byte> trailingBytes = default)
+    {
+        byte[] nameBytes = Encoding.UTF8.GetBytes(assetName ?? string.Empty);
+        int alignedNamePart = Align4(4 + nameBytes.Length);
+        int alignedScriptPart = Align4(4 + scriptBytes.Length);
+
+        byte[] output = new byte[alignedNamePart + alignedScriptPart + trailingBytes.Length];
+        WriteInt32(output.AsSpan(0, 4), nameBytes.Length, isBigEndian);
+        nameBytes.CopyTo(output.AsSpan(4));
+
+        WriteInt32(output.AsSpan(alignedNamePart, 4), scriptBytes.Length, isBigEndian);
+        scriptBytes.CopyTo(output.AsSpan(alignedNamePart + 4));
+
+        if (!trailingBytes.IsEmpty)
+        {
+            trailingBytes.CopyTo(output.AsSpan(alignedNamePart + alignedScriptPart));
+        }
+
+        return output;
+    }
+
+    public static byte[]? PatchBinaryMonoBehaviourPayload(
+        ReadOnlySpan<byte> originalBytes,
+        long pathId,
+        IReadOnlyDictionary<string, string> translations,
+        bool isBigEndian,
+        out int patchedCount)
+    {
+        patchedCount = 0;
+        if (originalBytes.Length < 28 || translations.Count == 0)
+        {
+            return null;
+        }
+
+        var edits = new List<(int Offset, int OldLen, string NewValue)>();
+        string prefixWithPathId = $"PathId={pathId}::bin:";
+
+        foreach ((string key, string val) in translations)
+        {
+            if (string.IsNullOrEmpty(val))
+            {
+                continue;
+            }
+
+            ReadOnlySpan<char> span = key.AsSpan();
+            if (key.StartsWith(prefixWithPathId, StringComparison.OrdinalIgnoreCase))
+            {
+                span = span[prefixWithPathId.Length..];
+            }
+            else if (key.StartsWith("bin:", StringComparison.OrdinalIgnoreCase))
+            {
+                span = span[4..];
+            }
+            else
+            {
+                continue;
+            }
+
+            if (TryParseBinaryOffsetAndLength(span, out int offset, out int oldLen))
+            {
+                edits.Add((offset, oldLen, val));
+            }
+        }
+
+        if (edits.Count == 0)
+        {
+            return null;
+        }
+
+        edits.Sort((a, b) => a.Offset.CompareTo(b.Offset));
+
+        using var ms = new MemoryStream(originalBytes.Length + 256);
+        Span<byte> lenBuf = stackalloc byte[4];
+        int cursor = 0;
+
+        foreach ((int offset, int oldLen, string newValue) in edits)
+        {
+            if (offset < cursor || offset + 4 > originalBytes.Length)
+            {
+                continue;
+            }
+
+            int actualLen = ReadInt32(originalBytes.Slice(offset, 4), isBigEndian);
+            int oldAlignedEnd = Align4(offset + 4 + actualLen);
+            if (actualLen != oldLen || oldAlignedEnd > originalBytes.Length)
+            {
+                continue;
+            }
+
+            if (offset > cursor)
+            {
+                ms.Write(originalBytes.Slice(cursor, offset - cursor));
+            }
+
+            byte[] newUtf8 = Encoding.UTF8.GetBytes(newValue);
+            WriteInt32(lenBuf, newUtf8.Length, isBigEndian);
+            ms.Write(lenBuf);
+            ms.Write(newUtf8);
+
+            int pad = Align4(newUtf8.Length) - newUtf8.Length;
+            for (int p = 0; p < pad; p++)
+            {
+                ms.WriteByte(0);
+            }
+
+            cursor = oldAlignedEnd;
+            patchedCount++;
+        }
+
+        if (patchedCount == 0)
+        {
+            return null;
+        }
+
+        if (cursor < originalBytes.Length)
+        {
+            ms.Write(originalBytes[cursor..]);
+        }
+
+        return ms.ToArray();
+    }
+
+    private static bool TryParseBinaryOffsetAndLength(ReadOnlySpan<char> span, out int offset, out int length)
+    {
+        offset = -1;
+        length = -1;
+
+        int offIdx = span.IndexOf("offset=", StringComparison.OrdinalIgnoreCase);
+        int lenIdx = span.IndexOf("len=", StringComparison.OrdinalIgnoreCase);
+        if (offIdx < 0 || lenIdx < 0)
+        {
+            return false;
+        }
+
+        ReadOnlySpan<char> offSlice = span[(offIdx + 7)..];
+        int semi1 = offSlice.IndexOf(';');
+        if (semi1 >= 0)
+        {
+            offSlice = offSlice[..semi1];
+        }
+
+        ReadOnlySpan<char> lenSlice = span[(lenIdx + 4)..];
+        int semi2 = lenSlice.IndexOf(';');
+        if (semi2 >= 0)
+        {
+            lenSlice = lenSlice[..semi2];
+        }
+
+        return int.TryParse(offSlice, out offset) && int.TryParse(lenSlice, out length);
+    }
+
     private static bool HasZeroPadding(ReadOnlySpan<byte> buffer, int unalignedEnd, int alignedEnd)
     {
         for (int i = unalignedEnd; i < alignedEnd; i++)
@@ -151,4 +306,16 @@ public static class AlignedBinaryStringScanner
         isBigEndian
             ? BinaryPrimitives.ReadInt32BigEndian(span)
             : BinaryPrimitives.ReadInt32LittleEndian(span);
+
+    private static void WriteInt32(Span<byte> span, int value, bool isBigEndian)
+    {
+        if (isBigEndian)
+        {
+            BinaryPrimitives.WriteInt32BigEndian(span, value);
+        }
+        else
+        {
+            BinaryPrimitives.WriteInt32LittleEndian(span, value);
+        }
+    }
 }
